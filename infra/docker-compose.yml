@@ -1,0 +1,91 @@
+services:
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - pipeline-network
+
+  simulator:
+    build: # tells Docker to build an image from the Dockerfile in the specified context
+      context: ../simulator # path to the folder with the Dockerfile
+    container_name: simulator
+    ports:
+      - "5000:5000" # maps port 5000 inside the container to port 5000
+    volumes:
+      - ../data:/data # mounts the local data folder to /data in the container
+    networks:
+      - pipeline-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+    ports:
+      - "9092:9092"
+      - "9094:9093"
+    networks:
+      - pipeline-network
+
+  nifi:
+    image: apache/nifi:1.23.2
+    container_name: nifi
+    depends_on:
+      - kafka
+    environment:
+      NIFI_WEB_HTTP_PORT: 8080
+      SINGLE_USER_CREDENTIALS_USERNAME: admin
+      SINGLE_USER_CREDENTIALS_PASSWORD: adminpassword
+    ports:
+      - "8080:8080"
+    volumes:
+      - nifi-data:/opt/nifi/nifi-current/data # persist NiFi flow configuration
+    networks:
+      - pipeline-network
+
+  spark-master:
+    image: apache/spark:3.5.1
+    container_name: spark-master
+    entrypoint: ["/opt/spark/sbin/start-master.sh"]
+    environment:
+      SPARK_NO_DAEMONIZE: "true"
+    ports:
+      - "8081:8080"
+      - "7077:7077"
+    volumes:
+      - ../spark:/opt/spark-jobs
+    networks:
+      - pipeline-network
+
+  spark-worker:
+    image: apache/spark:3.5.1
+    container_name: spark-worker
+    entrypoint: ["/opt/spark/sbin/start-worker.sh", "spark://spark-master:7077"]
+    environment:
+      SPARK_NO_DAEMONIZE: "true"
+    depends_on:
+      - spark-master
+    volumes:
+      - ../spark:/opt/spark-jobs
+    networks:
+      - pipeline-network
+
+volumes:
+  nifi-data:
+
+networks:
+  pipeline-network:
+    driver: bridge
