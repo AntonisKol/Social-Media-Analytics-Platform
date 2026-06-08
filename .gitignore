@@ -2,5 +2,6 @@
 __pycache__/
 *.pyc
 .DS_Store
-data/sample_posts.jsonspark/streaming/checkpoint/
+data/sample_posts.json
+spark/streaming/checkpoint/
 spark/streaming/output/
