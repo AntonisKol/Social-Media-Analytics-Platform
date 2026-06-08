@@ -52,7 +52,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - nifi-data:/opt/nifi/nifi-current/data # persist NiFi flow configuration
+      - nifi-data:/opt/nifi/nifi-current/conf # persist NiFi flow configuration
     networks:
       - pipeline-network
 
