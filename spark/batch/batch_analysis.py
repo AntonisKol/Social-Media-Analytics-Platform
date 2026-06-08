@@ -1,0 +1,134 @@
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, from_json, regexp_extract, count, avg
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType
+import os
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# base output directory for all batch reports and visualizations
+OUTPUT_DIR = "/Users/mpe/Desktop/Iron Hack/CAPSTONE /Social Media Analytics Platform/spark/batch/output"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# create Spark session — Kafka connector loaded at submit time via --packages
+spark = SparkSession.builder \
+    .appName("SocialMediaBatchAnalysis") \
+    .getOrCreate()
+
+spark.sparkContext.setLogLevel("ERROR")
+
+# schema must match the JSON format produced by the simulator
+# location field included after Phase 2 enrichment was implemented
+post_schema = StructType([
+    StructField("post_id", StringType(), True),
+    StructField("user_id", StringType(), True),
+    StructField("text", StringType(), True),
+    StructField("timestamp", StringType(), True),
+    StructField("likes", IntegerType(), True),
+    StructField("retweets", IntegerType(), True),
+    StructField("location", StringType(), True)
+])
+
+# read all historical messages from Kafka as a one-time batch
+# startingOffsets=earliest reads from the very first message ever stored
+# endingOffsets=latest stops at the most recent message at job start time
+raw_df = spark.read \
+    .format("kafka") \
+    .option("kafka.bootstrap.servers", "localhost:9092") \
+    .option("subscribe", "social_posts_raw") \
+    .option("startingOffsets", "earliest") \
+    .option("endingOffsets", "latest") \
+    .load()
+
+# parse the JSON payload from the Kafka value column
+posts_df = raw_df \
+    .select(from_json(col("value").cast("string"), post_schema).alias("post")) \
+    .select(
+        col("post.post_id"),
+        col("post.user_id"),
+        col("post.text"),
+        col("post.likes"),
+        col("post.retweets"),
+        col("post.location")
+    ) \
+    .filter(col("post_id").isNotNull())
+
+# extract the first hashtag from the post text using regex
+posts_df = posts_df.withColumn(
+    "hashtag", regexp_extract(col("text"), r"#\w+", 0)
+)
+
+# combine likes and retweets into a single engagement score
+posts_df = posts_df.withColumn(
+    "engagement", col("likes") + col("retweets")
+)
+
+# --- Analysis 1: Top 10 hashtags by post count ---
+top_hashtags = posts_df \
+    .filter(col("hashtag") != "") \
+    .groupBy("hashtag") \
+    .agg(count("*").alias("post_count")) \
+    .orderBy(col("post_count").desc()) \
+    .limit(10)
+
+top_hashtags.show(truncate=False)
+top_hashtags.coalesce(1).write.mode("overwrite").option("header", "true") \
+    .csv(f"{OUTPUT_DIR}/top_hashtags")
+
+top_hashtags_pd = top_hashtags.toPandas()
+plt.figure(figsize=(10, 6))
+sns.barplot(data=top_hashtags_pd, x="post_count", y="hashtag", hue="hashtag", palette="Blues_d", legend=False)
+plt.title("Top 10 Hashtags by Post Count")
+plt.xlabel("Number of Posts")
+plt.ylabel("Hashtag")
+plt.tight_layout()
+plt.savefig(f"{OUTPUT_DIR}/top_hashtags.png")
+plt.close()
+
+# --- Analysis 2: Most active users by post count ---
+active_users = posts_df \
+    .groupBy("user_id") \
+    .agg(count("*").alias("post_count")) \
+    .orderBy(col("post_count").desc()) \
+    .limit(10)
+
+active_users.show(truncate=False)
+active_users.coalesce(1).write.mode("overwrite").option("header", "true") \
+    .csv(f"{OUTPUT_DIR}/active_users")
+
+active_users_pd = active_users.toPandas()
+plt.figure(figsize=(10, 6))
+sns.barplot(data=active_users_pd, x="post_count", y="user_id", hue="user_id", palette="Greens_d", legend=False)
+plt.title("Top 10 Most Active Users")
+plt.xlabel("Number of Posts")
+plt.ylabel("User ID")
+plt.tight_layout()
+plt.savefig(f"{OUTPUT_DIR}/active_users.png")
+plt.close()
+
+# --- Analysis 3: Average engagement per hashtag ---
+engagement_by_hashtag = posts_df \
+    .filter(col("hashtag") != "") \
+    .groupBy("hashtag") \
+    .agg(
+        count("*").alias("post_count"),
+        avg("engagement").alias("avg_engagement")
+    ) \
+    .orderBy(col("avg_engagement").desc()) \
+    .limit(10)
+
+engagement_by_hashtag.show(truncate=False)
+engagement_by_hashtag.coalesce(1).write.mode("overwrite").option("header", "true") \
+    .csv(f"{OUTPUT_DIR}/engagement_by_hashtag")
+
+engagement_pd = engagement_by_hashtag.toPandas()
+plt.figure(figsize=(10, 6))
+sns.barplot(data=engagement_pd, x="avg_engagement", y="hashtag", hue="hashtag", palette="Oranges_d", legend=False)
+plt.title("Average Engagement (Likes + Retweets) per Hashtag")
+plt.xlabel("Average Engagement")
+plt.ylabel("Hashtag")
+plt.tight_layout()
+plt.savefig(f"{OUTPUT_DIR}/engagement_by_hashtag.png")
+plt.close()
+
+print("Batch analysis complete. CSVs and plots saved to:", OUTPUT_DIR)
+spark.stop()

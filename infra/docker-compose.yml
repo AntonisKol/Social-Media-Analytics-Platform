@@ -1,75 +1,87 @@
 services:
 
+  # Zookeeper: required by Kafka for broker coordination and leader election
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
     container_name: zookeeper
     environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_CLIENT_PORT: 2181   # port Kafka uses to talk to Zookeeper
+      ZOOKEEPER_TICK_TIME: 2000     # heartbeat interval in milliseconds
     ports:
       - "2181:2181"
     networks:
       - pipeline-network
 
+  # Simulator: Flask app that generates fake social media posts
+  # NiFi polls its /posts endpoint via HTTP GET to get new posts
   simulator:
-    build: # tells Docker to build an image from the Dockerfile in the specified context
-      context: ../simulator # path to the folder with the Dockerfile
+    build:
+      context: ../simulator           # folder containing the Dockerfile and app.py
     container_name: simulator
     ports:
-      - "5000:5000" # maps port 5000 inside the container to port 5000
+      - "5000:5000"                   # NiFi reaches this at http://simulator:5000/posts
     volumes:
-      - ../data:/data # mounts the local data folder to /data in the container
+      - ../data:/data                 # mounts local data/ folder so sample_posts.json is written there
     networks:
       - pipeline-network
 
+  # Kafka: the central message bus for the pipeline
+  # receives posts from NiFi and serves them to Spark Streaming and Spark Batch
   kafka:
     image: confluentinc/cp-kafka:7.4.0
     container_name: kafka
     depends_on:
-      - zookeeper
+      - zookeeper                     # Kafka requires Zookeeper to be running first
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      # two listeners: internal (for NiFi inside Docker) and external (for Spark on Mac)
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9094
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"  # topics are created manually to avoid accidental creation
     ports:
-      - "9092:9092"
-      - "9094:9093"
+      - "9092:9092"   # internal Docker network port
+      - "9094:9093"   # external Mac access port (used by Spark running on Mac)
     networks:
       - pipeline-network
 
+  # NiFi: data ingestion and enrichment engine
+  # polls the simulator, extracts hashtags, enriches with mock location, pushes to Kafka
   nifi:
     image: apache/nifi:1.23.2
     container_name: nifi
     depends_on:
-      - kafka
+      - kafka                         # Kafka must be running before NiFi starts publishing
     environment:
       NIFI_WEB_HTTP_PORT: 8080
       SINGLE_USER_CREDENTIALS_USERNAME: admin
       SINGLE_USER_CREDENTIALS_PASSWORD: adminpassword
     ports:
-      - "8080:8080"
+      - "8080:8080"                   # NiFi UI accessible at http://localhost:8080/nifi
     volumes:
-      - nifi-data:/opt/nifi/nifi-current/conf # persist NiFi flow configuration
+      - nifi-data:/opt/nifi/nifi-current/conf  # persists NiFi flow so it survives container restarts
     networks:
       - pipeline-network
 
+  # Spark Master: cluster coordinator
+  # accepts submitted jobs and assigns tasks to workers
   spark-master:
     image: apache/spark:3.5.1
     container_name: spark-master
     entrypoint: ["/opt/spark/sbin/start-master.sh"]
     environment:
-      SPARK_NO_DAEMONIZE: "true"
+      SPARK_NO_DAEMONIZE: "true"      # keeps the process in foreground so Docker doesn't exit
     ports:
-      - "8081:8080"
-      - "7077:7077"
+      - "8081:8080"                   # Spark Master UI at http://localhost:8081
+      - "7077:7077"                   # worker registration port
     volumes:
-      - ../spark:/opt/spark-jobs
+      - ../spark:/opt/spark-jobs      # mounts spark/ folder so job scripts are accessible inside container
     networks:
       - pipeline-network
 
+  # Spark Worker: executes the actual computation
+  # connects to the master and waits for tasks to run
   spark-worker:
     image: apache/spark:3.5.1
     container_name: spark-worker
@@ -77,15 +89,15 @@ services:
     environment:
       SPARK_NO_DAEMONIZE: "true"
     depends_on:
-      - spark-master
+      - spark-master                  # worker must register with master before accepting tasks
     volumes:
       - ../spark:/opt/spark-jobs
     networks:
       - pipeline-network
 
 volumes:
-  nifi-data:
+  nifi-data:                          # named volume for NiFi flow persistence
 
 networks:
   pipeline-network:
-    driver: bridge
+    driver: bridge                    # all containers share this network and can reach each other by name
