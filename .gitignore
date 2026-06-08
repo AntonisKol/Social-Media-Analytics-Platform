@@ -5,3 +5,4 @@ __pycache__/
 data/sample_posts.json
 spark/streaming/checkpoint/
 spark/streaming/output/
+**/.*.crc
