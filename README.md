@@ -20,12 +20,9 @@ Kafka -> Spark Batch engagement reports -> CSV + PNG reports
 NiFi Flow.png                  Screenshot of the NiFi canvas for presentation
 data/                         Sample posts used for tests and demos
 infra/docker-compose.yml       Local NiFi/Kafka/Spark/simulator stack
-nifi/flow.json.gz              NiFi's saved flow export
-nifi/flow_archive.json.gz      NiFi's saved flow archive
 nifi/social_media_flow.json    Source-controlled NiFi flow definition
 scripts/create_kafka_topic.sh  Manual Kafka topic creation helper
 simulator/                     Flask mock social API
-spark/common/                  Shared sentiment and hashtag helpers
 spark/batch/                   Spark batch report job
 spark/streaming/               Spark streaming sentiment job
 tests/                         Pytest validation suite
@@ -38,7 +35,7 @@ tests/                         Pytest validation suite
 | Docker setup for NiFi, Kafka, and Spark | `infra/docker-compose.yml` |
 | Mock social media API | `simulator/simulator.py` |
 | 100+ sample records | `data/sample_posts.json` |
-| NiFi API polling, enrichment, and Kafka publish flow | `nifi/flow.json.gz`, `nifi/social_media_flow.json`, and `NiFi Flow.png` |
+| NiFi API polling, enrichment, and Kafka publish flow | `nifi/social_media_flow.json` and `NiFi Flow.png` |
 | Kafka topic for enriched posts | `social_posts_raw`, created by `kafka-init` or `scripts/create_kafka_topic.sh` |
 | Real-time sentiment analysis | `spark/streaming/sentiment_streaming.py` |
 | Two-minute hashtag sentiment windows | Streaming job console and parquet output |
@@ -112,14 +109,6 @@ them after validating the flow.
 
 ## 4. Run Spark streaming sentiment analysis
 
-Package the shared Spark Python helpers before running either Spark job:
-
-```bash
-cd spark
-zip -r common.zip common
-cd ..
-```
-
 From the host machine, use the external Kafka listener:
 
 ```bash
@@ -130,7 +119,6 @@ KAFKA_TOPIC=social_posts_raw \
 STREAMING_OUTPUT_DIR=spark/streaming/output \
 STREAMING_CHECKPOINT_DIR=spark/streaming/checkpoint \
 spark-submit \
-  --py-files spark/common.zip \
   --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 \
   spark/streaming/sentiment_streaming.py
 ```
@@ -143,7 +131,6 @@ docker exec -it \
   -e KAFKA_TOPIC=social_posts_raw \
   spark-master /opt/spark/bin/spark-submit \
   --master spark://spark-master:7077 \
-  --py-files /opt/spark-jobs/common.zip \
   --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 \
   --conf spark.executorEnv.KAFKA_BOOTSTRAP_SERVERS=kafka:9092 \
   --conf spark.executorEnv.KAFKA_TOPIC=social_posts_raw \
@@ -162,7 +149,6 @@ KAFKA_BOOTSTRAP_SERVERS=localhost:9094 \
 KAFKA_TOPIC=social_posts_raw \
 BATCH_OUTPUT_DIR=spark/batch/output \
 spark-submit \
-  --py-files spark/common.zip \
   --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 \
   spark/batch/batch_analysis.py
 ```

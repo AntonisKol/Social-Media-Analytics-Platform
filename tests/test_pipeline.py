@@ -1,17 +1,36 @@
 import json
-import sys
 import os
+import re
+
+from textblob import TextBlob
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SIMULATOR_PATH = os.path.join(ROOT_DIR, "simulator")
-SPARK_PATH = os.path.join(ROOT_DIR, "spark")
 
+import sys
 sys.path.insert(0, SIMULATOR_PATH)
-sys.path.insert(0, SPARK_PATH)
 
-from common.hashtags import extract_hashtags
-from common.sentiment import analyse_sentiment
 from simulator import generate_post
+
+HASHTAG_PATTERN = r"#\w+"
+
+
+def extract_hashtags(text):
+    if not text:
+        return []
+    return re.findall(HASHTAG_PATTERN, text)
+
+
+def analyse_sentiment(text):
+    if not text:
+        return "neutral"
+
+    polarity = TextBlob(text).sentiment.polarity
+    if polarity > 0.1:
+        return "positive"
+    if polarity < -0.1:
+        return "negative"
+    return "neutral"
 
 
 class TestSentimentClassifier:
