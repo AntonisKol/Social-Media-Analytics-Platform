@@ -1,0 +1,165 @@
+{
+  "flowName": "Social Media Analytics Platform",
+  "nifiVersion": "1.23.2",
+  "description": "Source-controlled NiFi flow definition for polling the mock social API, extracting hashtags, enriching user location, and publishing enriched social posts to Kafka.",
+  "variables": {
+    "mock.api.url": "http://simulator:5000/posts",
+    "kafka.bootstrap.servers": "kafka:9092",
+    "kafka.topic": "social_posts_raw",
+    "poll.interval": "5 sec",
+    "hashtag.regex": "#[A-Za-z0-9_]+"
+  },
+  "controllerServices": [
+    {
+      "name": "JsonTreeReader",
+      "type": "org.apache.nifi.json.JsonTreeReader",
+      "properties": {
+        "Schema Access Strategy": "Infer Schema"
+      }
+    },
+    {
+      "name": "JsonRecordSetWriter",
+      "type": "org.apache.nifi.json.JsonRecordSetWriter",
+      "properties": {
+        "Schema Write Strategy": "No Schema",
+        "Output Grouping": "One Line Per Object"
+      }
+    },
+    {
+      "name": "UserLocationLookup",
+      "type": "org.apache.nifi.lookup.SimpleKeyValueLookupService",
+      "properties": {
+        "U001": "New York",
+        "U002": "London",
+        "U003": "Berlin",
+        "U004": "Paris",
+        "U005": "Tokyo",
+        "U006": "Sydney",
+        "U007": "Toronto",
+        "U008": "Amsterdam",
+        "U009": "Singapore",
+        "U010": "Dubai",
+        "U011": "Madrid",
+        "U012": "Rome",
+        "U013": "Chicago",
+        "U014": "Los Angeles",
+        "U015": "Sao Paulo",
+        "U016": "Mumbai",
+        "U017": "Seoul",
+        "U018": "Mexico City",
+        "U019": "Stockholm",
+        "U020": "Cape Town"
+      }
+    }
+  ],
+  "processors": [
+    {
+      "id": "poll-mock-social-api",
+      "name": "Poll Mock Social API",
+      "type": "org.apache.nifi.processors.standard.InvokeHTTP",
+      "scheduling": {
+        "strategy": "TIMER_DRIVEN",
+        "runSchedule": "${poll.interval}"
+      },
+      "properties": {
+        "HTTP Method": "GET",
+        "Remote URL": "${mock.api.url}",
+        "Always Output Response": "true",
+        "Response Body Attribute Name": "invokehttp.response.body"
+      },
+      "relationships": {
+        "Response": "Extract JSON Fields",
+        "No Retry": "failure",
+        "Failure": "failure"
+      }
+    },
+    {
+      "id": "extract-json-fields",
+      "name": "Extract JSON Fields",
+      "type": "org.apache.nifi.processors.standard.EvaluateJsonPath",
+      "properties": {
+        "Destination": "flowfile-attribute",
+        "post_id": "$.post_id",
+        "user_id": "$.user_id",
+        "text": "$.text",
+        "timestamp": "$.timestamp",
+        "likes": "$.likes",
+        "retweets": "$.retweets"
+      },
+      "relationships": {
+        "Matched": "Extract Hashtags",
+        "Unmatched": "failure",
+        "Failure": "failure"
+      }
+    },
+    {
+      "id": "extract-hashtags",
+      "name": "Extract Hashtags",
+      "type": "org.apache.nifi.processors.standard.ExtractText",
+      "properties": {
+        "hashtags": "(?s).*(#[A-Za-z0-9_]+(?:\\s+#[A-Za-z0-9_]+)*).*"
+      },
+      "relationships": {
+        "Matched": "Lookup User Location",
+        "Unmatched": "Lookup User Location"
+      }
+    },
+    {
+      "id": "lookup-user-location",
+      "name": "Lookup User Location",
+      "type": "org.apache.nifi.processors.attributes.LookupAttribute",
+      "properties": {
+        "Lookup Service": "UserLocationLookup",
+        "include.empty.values": "false",
+        "user_id": "${user_id}"
+      },
+      "relationships": {
+        "Matched": "Build Enriched JSON",
+        "Unmatched": "Build Enriched JSON",
+        "Failure": "failure"
+      }
+    },
+    {
+      "id": "build-enriched-json",
+      "name": "Build Enriched JSON",
+      "type": "org.apache.nifi.processors.standard.AttributesToJSON",
+      "properties": {
+        "Destination": "flowfile-content",
+        "Attributes List": "post_id,user_id,text,timestamp,likes,retweets,location,hashtags",
+        "Null Value": "false"
+      },
+      "relationships": {
+        "Success": "Publish Enriched Posts to Kafka",
+        "Failure": "failure"
+      }
+    },
+    {
+      "id": "publish-enriched-posts-to-kafka",
+      "name": "Publish Enriched Posts to Kafka",
+      "type": "org.apache.nifi.processors.kafka.pubsub.PublishKafka_2_6",
+      "properties": {
+        "bootstrap.servers": "${kafka.bootstrap.servers}",
+        "topic": "${kafka.topic}",
+        "acks": "1",
+        "message.key.field": "${post_id}"
+      },
+      "relationships": {
+        "Success": "success",
+        "Failure": "failure"
+      }
+    }
+  ],
+  "connections": [
+    ["Poll Mock Social API", "Response", "Extract JSON Fields"],
+    ["Extract JSON Fields", "Matched", "Extract Hashtags"],
+    ["Extract Hashtags", "Matched", "Lookup User Location"],
+    ["Extract Hashtags", "Unmatched", "Lookup User Location"],
+    ["Lookup User Location", "Matched", "Build Enriched JSON"],
+    ["Lookup User Location", "Unmatched", "Build Enriched JSON"],
+    ["Build Enriched JSON", "Success", "Publish Enriched Posts to Kafka"]
+  ],
+  "failureHandling": {
+    "failure": "LogAttribute or terminate during local demo",
+    "success": "Auto-terminate after Kafka publish"
+  }
+}
