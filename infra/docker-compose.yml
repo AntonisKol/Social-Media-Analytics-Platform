@@ -1,3 +1,5 @@
+# Mission: start the local demo platform in one command.
+# It runs the simulator, NiFi, Kafka, and Spark services that move posts through the analytics pipeline.
 services:
 
   zookeeper:

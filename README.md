@@ -1,3 +1,4 @@
+<!-- Mission: explain how the project turns social posts into live sentiment trends and daily engagement reports. -->
 # Social Media Analytics Platform
 
 Real-time social media analytics prototype using a mock REST API, Apache NiFi,
@@ -14,11 +15,14 @@ Kafka -> Spark Streaming sentiment windows -> console + parquet output
 Kafka -> Spark Batch engagement reports -> CSV + PNG reports
 ```
 
+Downloadable visual design: [`docs/pipeline_design.svg`](docs/pipeline_design.svg)
+
 ## Repository layout
 
 ```text
 NiFi Flow.png                  Screenshot of the NiFi canvas for presentation
 data/                         Sample posts used for tests and demos
+docs/pipeline_design.svg       Downloadable visual design of the full pipeline
 infra/docker-compose.yml       Local NiFi/Kafka/Spark/simulator stack
 nifi/social_media_flow.json    Source-controlled NiFi flow definition
 scripts/create_kafka_topic.sh  Manual Kafka topic creation helper

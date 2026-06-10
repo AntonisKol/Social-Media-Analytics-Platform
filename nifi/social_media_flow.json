@@ -1,5 +1,6 @@
 {
   "flowName": "Social Media Analytics Platform",
+  "mission": "This flow explains how NiFi collects social posts, adds useful context, and sends them to Kafka for Spark analysis.",
   "nifiVersion": "1.23.2",
   "description": "Source-controlled NiFi flow definition for polling the mock social API, extracting hashtags, enriching user location, and publishing enriched social posts to Kafka.",
   "variables": {

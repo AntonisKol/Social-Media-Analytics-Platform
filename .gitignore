@@ -1,3 +1,4 @@
+# Mission: keep local environments and generated run files out of the repository.
 .venv/
 __pycache__/
 .pytest_cache/

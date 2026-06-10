@@ -1,0 +1,130 @@
+<!-- Mission: a downloadable visual explanation of how posts move from the mock API into NiFi, Kafka, Spark, and reports. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1050" viewBox="0 0 1600 1050">
+  <defs>
+    <style>
+      .page { fill: #f6f8fb; }
+      .title { font: 700 34px Arial, sans-serif; fill: #172033; }
+      .subtitle { font: 18px Arial, sans-serif; fill: #46556f; }
+      .section { font: 700 20px Arial, sans-serif; fill: #172033; }
+      .body { font: 15px Arial, sans-serif; fill: #233047; }
+      .small { font: 13px Arial, sans-serif; fill: #46556f; }
+      .box { fill: #ffffff; stroke: #cbd5e1; stroke-width: 2; rx: 18; }
+      .source { fill: #e0f2fe; stroke: #0284c7; }
+      .nifi { fill: #ecfdf5; stroke: #059669; }
+      .kafka { fill: #fff7ed; stroke: #ea580c; }
+      .spark { fill: #f5f3ff; stroke: #7c3aed; }
+      .report { fill: #fefce8; stroke: #ca8a04; }
+      .test { fill: #fce7f3; stroke: #db2777; }
+      .arrow { stroke: #334155; stroke-width: 3; fill: none; marker-end: url(#arrowhead); }
+      .dash { stroke: #64748b; stroke-width: 2; stroke-dasharray: 8 8; fill: none; marker-end: url(#arrowhead); }
+      .lane { fill: #e2e8f0; opacity: 0.45; }
+      .tag { font: 700 13px Arial, sans-serif; fill: #ffffff; }
+    </style>
+    <marker id="arrowhead" markerWidth="12" markerHeight="8" refX="11" refY="4" orient="auto">
+      <polygon points="0 0, 12 4, 0 8" fill="#334155"/>
+    </marker>
+  </defs>
+
+  <rect class="page" x="0" y="0" width="1600" height="1050"/>
+
+  <text class="title" x="70" y="70">Social Media Analytics Platform</text>
+  <text class="subtitle" x="70" y="104">Mission: collect live social posts, enrich them, measure sentiment by hashtag, and create engagement reports for marketing decisions.</text>
+
+  <rect class="lane" x="50" y="145" width="1500" height="150" rx="20"/>
+  <text class="section" x="75" y="178">1. Live source and ingestion</text>
+
+  <rect class="box source" x="75" y="205" width="260" height="75"/>
+  <text class="section" x="100" y="233">Mock Social API</text>
+  <text class="small" x="100" y="257">Creates Twitter-like JSON posts</text>
+  <text class="small" x="100" y="275">File: simulator/simulator.py</text>
+
+  <rect class="box nifi" x="430" y="205" width="300" height="75"/>
+  <text class="section" x="455" y="233">NiFi Flow</text>
+  <text class="small" x="455" y="257">Polls API, extracts fields and hashtags</text>
+  <text class="small" x="455" y="275">File: nifi/social_media_flow.json</text>
+
+  <rect class="box kafka" x="825" y="205" width="270" height="75"/>
+  <text class="section" x="850" y="233">Kafka Topic</text>
+  <text class="small" x="850" y="257">Stores enriched social posts</text>
+  <text class="small" x="850" y="275">Topic: social_posts_raw</text>
+
+  <rect class="box source" x="1185" y="205" width="295" height="75"/>
+  <text class="section" x="1210" y="233">Historical Messages</text>
+  <text class="small" x="1210" y="257">Same Kafka data supports live and batch</text>
+  <text class="small" x="1210" y="275">Used by both Spark jobs</text>
+
+  <path class="arrow" d="M335 243 L430 243"/>
+  <path class="arrow" d="M730 243 L825 243"/>
+  <path class="arrow" d="M1095 243 L1185 243"/>
+
+  <rect class="lane" x="50" y="335" width="1500" height="265" rx="20"/>
+  <text class="section" x="75" y="368">2. Real-time sentiment path</text>
+
+  <rect class="box spark" x="130" y="405" width="310" height="115"/>
+  <text class="section" x="155" y="433">Spark Streaming</text>
+  <text class="small" x="155" y="457">Reads new Kafka messages</text>
+  <text class="small" x="155" y="477">Classifies sentiment with TextBlob</text>
+  <text class="small" x="155" y="497">File: spark/streaming/sentiment_streaming.py</text>
+
+  <rect class="box spark" x="550" y="405" width="310" height="115"/>
+  <text class="section" x="575" y="433">2-minute hashtag windows</text>
+  <text class="small" x="575" y="457">Groups each hashtag by time window</text>
+  <text class="small" x="575" y="477">Counts positive, negative, neutral posts</text>
+  <text class="small" x="575" y="497">Good for live trend monitoring</text>
+
+  <rect class="box report" x="970" y="405" width="310" height="115"/>
+  <text class="section" x="995" y="433">Live outputs</text>
+  <text class="small" x="995" y="457">Console table for presentation</text>
+  <text class="small" x="995" y="477">Parquet files in spark/streaming/output</text>
+  <text class="small" x="995" y="497">Shows current sentiment trends</text>
+
+  <path class="dash" d="M960 280 C960 330, 285 330, 285 405"/>
+  <path class="arrow" d="M440 463 L550 463"/>
+  <path class="arrow" d="M860 463 L970 463"/>
+
+  <rect class="lane" x="50" y="640" width="1500" height="265" rx="20"/>
+  <text class="section" x="75" y="673">3. Daily engagement report path</text>
+
+  <rect class="box spark" x="130" y="710" width="310" height="115"/>
+  <text class="section" x="155" y="738">Spark Batch</text>
+  <text class="small" x="155" y="762">Reads all available Kafka history</text>
+  <text class="small" x="155" y="782">Calculates post and engagement metrics</text>
+  <text class="small" x="155" y="802">File: spark/batch/batch_analysis.py</text>
+
+  <rect class="box report" x="550" y="710" width="310" height="115"/>
+  <text class="section" x="575" y="738">Report metrics</text>
+  <text class="small" x="575" y="762">Top 10 hashtags</text>
+  <text class="small" x="575" y="782">Most active users</text>
+  <text class="small" x="575" y="802">Average likes + retweets by hashtag</text>
+
+  <rect class="box report" x="970" y="710" width="310" height="115"/>
+  <text class="section" x="995" y="738">Report files</text>
+  <text class="small" x="995" y="762">CSV folders in spark/batch/output</text>
+  <text class="small" x="995" y="782">PNG charts for presentation</text>
+  <text class="small" x="995" y="802">Useful for daily agency reporting</text>
+
+  <path class="dash" d="M960 280 C960 615, 285 615, 285 710"/>
+  <path class="arrow" d="M440 768 L550 768"/>
+  <path class="arrow" d="M860 768 L970 768"/>
+
+  <rect class="box" x="1320" y="405" width="170" height="420"/>
+  <text class="section" x="1345" y="435">Local platform</text>
+  <text class="small" x="1345" y="465">Docker Compose runs:</text>
+  <text class="small" x="1345" y="490">- Kafka</text>
+  <text class="small" x="1345" y="515">- NiFi</text>
+  <text class="small" x="1345" y="540">- Spark master</text>
+  <text class="small" x="1345" y="565">- Spark worker</text>
+  <text class="small" x="1345" y="590">- Simulator</text>
+  <text class="small" x="1345" y="625">Start command:</text>
+  <text class="small" x="1345" y="650">docker compose up</text>
+  <text class="small" x="1345" y="675">File:</text>
+  <text class="small" x="1345" y="700">infra/docker-compose.yml</text>
+
+  <rect class="box test" x="75" y="940" width="690" height="70"/>
+  <text class="section" x="100" y="968">Validation</text>
+  <text class="small" x="100" y="992">tests/test_pipeline.py checks sentiment labels, API schema, sample data, and hashtag extraction.</text>
+
+  <rect class="box" x="835" y="940" width="645" height="70"/>
+  <text class="section" x="860" y="968">Presentation message</text>
+  <text class="small" x="860" y="992">The agency gets immediate hashtag sentiment plus repeatable daily engagement reports from the same stream.</text>
+</svg>
