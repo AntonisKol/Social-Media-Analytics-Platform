@@ -1,17 +1,11 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, from_json, udf, window, count, when, regexp_extract_all, explode, lit
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType
+from textblob import TextBlob
 import os
-import sys
 from pathlib import Path
 
-SPARK_ROOT = Path(__file__).resolve().parents[1]
-if str(SPARK_ROOT) not in sys.path:
-    sys.path.insert(0, str(SPARK_ROOT))
-
-from common.hashtags import HASHTAG_PATTERN
-from common.sentiment import analyse_sentiment
-
+HASHTAG_PATTERN = r"#\w+"
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9094")
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "social_posts_raw")
 CHECKPOINT_DIR = os.getenv("STREAMING_CHECKPOINT_DIR", str(Path(__file__).resolve().parent / "checkpoint"))
@@ -33,6 +27,17 @@ post_schema = StructType([
     StructField("retweets", IntegerType(), True),
     StructField("location", StringType(), True)
 ])
+
+def analyse_sentiment(text):
+    if not text:
+        return "neutral"
+
+    polarity = TextBlob(text).sentiment.polarity
+    if polarity > 0.1:
+        return "positive"
+    if polarity < -0.1:
+        return "negative"
+    return "neutral"
 
 sentiment_udf = udf(analyse_sentiment, StringType())
 

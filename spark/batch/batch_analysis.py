@@ -2,17 +2,11 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, from_json, regexp_extract_all, count, avg, explode, lit
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType
 import os
-import sys
 from pathlib import Path
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-SPARK_ROOT = Path(__file__).resolve().parents[1]
-if str(SPARK_ROOT) not in sys.path:
-    sys.path.insert(0, str(SPARK_ROOT))
-
-from common.hashtags import HASHTAG_PATTERN
-
+HASHTAG_PATTERN = r"#\w+"
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9094")
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "social_posts_raw")
 OUTPUT_DIR = os.getenv("BATCH_OUTPUT_DIR", str(Path(__file__).resolve().parent / "output"))
