@@ -35,14 +35,33 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      # two listeners: internal (for NiFi inside Docker) and external (for Spark on Mac)
+      # two listeners: internal Docker network and external host access
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:9093
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9094
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"  # topics are created manually to avoid accidental creation
     ports:
-      - "9092:9092"   # internal Docker network port
-      - "9094:9093"   # external Mac access port (used by Spark running on Mac)
+      - "9094:9093"   # external host access port for local Spark jobs
+    networks:
+      - pipeline-network
+
+  # Kafka topic bootstrap: creates the raw social-post topic used by NiFi and Spark
+  kafka-init:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: kafka-init
+    depends_on:
+      - kafka
+    command: >
+      bash -c "
+      cub kafka-ready -b kafka:9092 1 60 &&
+      kafka-topics --bootstrap-server kafka:9092
+        --create --if-not-exists
+        --topic social_posts_raw
+        --partitions 1
+        --replication-factor 1
+      "
     networks:
       - pipeline-network
 

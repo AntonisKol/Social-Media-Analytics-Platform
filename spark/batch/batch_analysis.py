@@ -1,12 +1,22 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, from_json, regexp_extract, count, avg
+from pyspark.sql.functions import col, from_json, regexp_extract_all, count, avg, explode, lit
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType
 import os
+import sys
+from pathlib import Path
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# base output directory for all batch reports and visualizations
-OUTPUT_DIR = "/Users/mpe/Desktop/Iron Hack/CAPSTONE /Social Media Analytics Platform/spark/batch/output"
+SPARK_ROOT = Path(__file__).resolve().parents[1]
+if str(SPARK_ROOT) not in sys.path:
+    sys.path.insert(0, str(SPARK_ROOT))
+
+from common.hashtags import HASHTAG_PATTERN
+
+# Runtime configuration. Defaults are for host-run spark-submit against Docker Compose.
+KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9094")
+KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "social_posts_raw")
+OUTPUT_DIR = os.getenv("BATCH_OUTPUT_DIR", str(Path(__file__).resolve().parent / "output"))
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # create Spark session — Kafka connector loaded at submit time via --packages
@@ -33,8 +43,8 @@ post_schema = StructType([
 # endingOffsets=latest stops at the most recent message at job start time
 raw_df = spark.read \
     .format("kafka") \
-    .option("kafka.bootstrap.servers", "localhost:9092") \
-    .option("subscribe", "social_posts_raw") \
+    .option("kafka.bootstrap.servers", KAFKA_BOOTSTRAP_SERVERS) \
+    .option("subscribe", KAFKA_TOPIC) \
     .option("startingOffsets", "earliest") \
     .option("endingOffsets", "latest") \
     .load()
@@ -52,9 +62,9 @@ posts_df = raw_df \
     ) \
     .filter(col("post_id").isNotNull())
 
-# extract the first hashtag from the post text using regex
+# extract every hashtag so multi-tag posts contribute to each hashtag metric
 posts_df = posts_df.withColumn(
-    "hashtag", regexp_extract(col("text"), r"#\w+", 0)
+    "hashtag", explode(regexp_extract_all(col("text"), lit(HASHTAG_PATTERN), 0))
 )
 
 # combine likes and retweets into a single engagement score

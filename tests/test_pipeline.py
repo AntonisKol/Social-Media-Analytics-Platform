@@ -4,27 +4,23 @@ Covers:
 1. Sentiment accuracy validation (TextBlob classifier)
 2. Simulator output validation (schema, field types, location enrichment)
 3. Sample data validation (100+ records, required fields)
+4. Hashtag extraction validation
 """
 
-import pytest
 import json
 import sys
 import os
 
-from textblob import TextBlob
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SIMULATOR_PATH = os.path.join(ROOT_DIR, "simulator")
+SPARK_PATH = os.path.join(ROOT_DIR, "spark")
 
+sys.path.insert(0, SIMULATOR_PATH)
+sys.path.insert(0, SPARK_PATH)
 
-# the same sentiment function used in sentiment_streaming.py
-def analyse_sentiment(text):
-    if not text:
-        return "neutral"
-    polarity = TextBlob(text).sentiment.polarity
-    if polarity > 0.1:
-        return "positive"
-    elif polarity < -0.1:
-        return "negative"
-    else:
-        return "neutral"
+from common.hashtags import extract_hashtags
+from common.sentiment import analyse_sentiment
+from simulator import generate_post
 
 
 # ── 1. Sentiment accuracy tests ──────────────────────────────────────────────────
@@ -69,16 +65,12 @@ class TestSentimentClassifier:
 
 # ── 2. Simulator schema validation ───────────────────────────────────────────────
 
-SIMULATOR_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "simulator")
-sys.path.insert(0, SIMULATOR_PATH)
-from simulator import generate_post
-
 REQUIRED_FIELDS = {"post_id", "user_id", "text", "timestamp", "likes", "retweets", "location"}
 
 VALID_CITIES = {
     "New York", "London", "Berlin", "Paris", "Tokyo",
     "Sydney", "Toronto", "Amsterdam", "Singapore", "Dubai",
-    "Madrid", "Rome", "Chicago", "Los Angeles", "Sao Paulo",
+    "Madrid", "Rome", "Chicago", "Los Angeles", "São Paulo",
     "Mumbai", "Seoul", "Mexico City", "Stockholm", "Cape Town"
 }
 
@@ -120,10 +112,14 @@ class TestSimulatorSchema:
         assert isinstance(post["location"], str)
         assert len(post["location"]) > 0
 
+    def test_location_is_from_mock_lookup(self):
+        post = generate_post()
+        assert post["location"] in VALID_CITIES
+
 
 # ── 3. Sample data file validation ───────────────────────────────────────────────
 
-SAMPLE_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "sample_posts.json")
+SAMPLE_FILE = os.path.join(ROOT_DIR, "data", "sample_posts.json")
 
 
 class TestSampleData:
@@ -131,20 +127,55 @@ class TestSampleData:
     def test_sample_file_exists(self):
         assert os.path.exists(SAMPLE_FILE), "sample_posts.json not found"
 
+    def _load_posts(self):
+        with open(SAMPLE_FILE, encoding="utf-8") as f:
+            return json.load(f)
+
     def test_sample_file_has_100_plus_records(self):
-        with open(SAMPLE_FILE) as f:
-            posts = json.load(f)
+        posts = self._load_posts()
         assert len(posts) >= 100, f"Only {len(posts)} records found, need 100+"
 
     def test_sample_records_have_required_fields(self):
-        with open(SAMPLE_FILE) as f:
-            posts = json.load(f)
-        for i, post in enumerate(posts[:10]):
+        posts = self._load_posts()
+        for i, post in enumerate(posts):
             for field in REQUIRED_FIELDS:
                 assert field in post, f"Record {i} missing field: {field}"
 
     def test_sample_records_have_unique_post_ids(self):
-        with open(SAMPLE_FILE) as f:
-            posts = json.load(f)
+        posts = self._load_posts()
         ids = [p["post_id"] for p in posts]
         assert len(ids) == len(set(ids)), "Duplicate post_ids found"
+
+    def test_sample_records_have_valid_field_types(self):
+        posts = self._load_posts()
+        for i, post in enumerate(posts):
+            assert isinstance(post["post_id"], str), f"Record {i} post_id is not a string"
+            assert isinstance(post["user_id"], str), f"Record {i} user_id is not a string"
+            assert isinstance(post["text"], str), f"Record {i} text is not a string"
+            assert isinstance(post["timestamp"], str), f"Record {i} timestamp is not a string"
+            assert isinstance(post["likes"], int), f"Record {i} likes is not an integer"
+            assert isinstance(post["retweets"], int), f"Record {i} retweets is not an integer"
+            assert isinstance(post["location"], str), f"Record {i} location is not a string"
+
+    def test_sample_records_have_extractable_hashtags(self):
+        posts = self._load_posts()
+        for i, post in enumerate(posts):
+            hashtags = extract_hashtags(post["text"])
+            assert hashtags, f"Record {i} has no extractable hashtags"
+            assert all(tag.startswith("#") for tag in hashtags)
+
+
+# ── 4. Hashtag extraction validation ─────────────────────────────────────────────
+
+class TestHashtagExtraction:
+
+    def test_extracts_multiple_hashtags_in_order(self):
+        text = "Amazing launch today #AI #Tech #Spark"
+        assert extract_hashtags(text) == ["#AI", "#Tech", "#Spark"]
+
+    def test_returns_empty_list_when_no_hashtags_exist(self):
+        assert extract_hashtags("No tags in this post") == []
+
+    def test_handles_empty_or_none_text(self):
+        assert extract_hashtags("") == []
+        assert extract_hashtags(None) == []
