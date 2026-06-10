@@ -116,9 +116,10 @@
   <text class="small" x="1345" y="565">- Spark worker</text>
   <text class="small" x="1345" y="590">- Simulator</text>
   <text class="small" x="1345" y="625">Start command:</text>
-  <text class="small" x="1345" y="650">docker compose up</text>
-  <text class="small" x="1345" y="675">File:</text>
-  <text class="small" x="1345" y="700">infra/docker-compose.yml</text>
+  <text class="small" x="1345" y="650">docker compose -f infra/docker-compose.yml</text>
+  <text class="small" x="1345" y="670">up -d --build</text>
+  <text class="small" x="1345" y="700">File:</text>
+  <text class="small" x="1345" y="725">infra/docker-compose.yml</text>
 
   <rect class="box test" x="75" y="940" width="690" height="70"/>
   <text class="section" x="100" y="968">Validation</text>

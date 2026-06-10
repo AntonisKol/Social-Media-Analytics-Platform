@@ -112,7 +112,7 @@
       "properties": {
         "Lookup Service": "UserLocationLookup",
         "include.empty.values": "false",
-        "user_id": "${user_id}"
+        "location": "${user_id}"
       },
       "relationships": {
         "Matched": "Build Enriched JSON",

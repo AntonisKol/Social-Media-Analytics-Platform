@@ -16,6 +16,7 @@ Kafka -> Spark Batch engagement reports -> CSV + PNG reports
 ```
 
 Downloadable visual design: [`docs/pipeline_design.svg`](docs/pipeline_design.svg)
+Presentation guide: [`docs/presentation_guide.md`](docs/presentation_guide.md)
 
 ## Repository layout
 
@@ -49,7 +50,8 @@ tests/                         Pytest validation suite
 
 ## 1. Install Python dependencies
 
-Use Python 3.10+.
+Use Python 3.10+. You also need Java available because Spark runs on the JVM.
+Java 17 is a safe choice for Spark 3.5.x.
 
 ```bash
 python3 -m venv .venv
@@ -67,7 +69,7 @@ docker compose -f infra/docker-compose.yml up -d --build
 Useful UIs:
 
 - Mock API: <http://localhost:5000/posts>
-- NiFi: <http://localhost:8080/nifi>
+- NiFi: <http://localhost:8080/nifi> (`admin` / `adminpassword`)
 - Spark master: <http://localhost:8081>
 - Kafka host bootstrap: `localhost:9094`
 - Kafka Docker-network bootstrap: `kafka:9092`
@@ -81,14 +83,14 @@ The Compose stack includes a `kafka-init` service that creates the topic
 
 ## 3. Configure NiFi
 
-The version-controlled NiFi flow definition lives at:
+The version-controlled NiFi flow description lives at:
 
 ```text
 nifi/social_media_flow.json
 ```
 
-In the NiFi UI, recreate or import the flow using these processor names and
-settings from the JSON artifact:
+Use it as a build guide in the NiFi UI. The file is written to be readable for
+the project, not as a one-click NiFi Registry import.
 
 1. `Poll Mock Social API` (`InvokeHTTP`)
    - Method: `GET`
@@ -122,24 +124,14 @@ KAFKA_BOOTSTRAP_SERVERS=localhost:9094 \
 KAFKA_TOPIC=social_posts_raw \
 STREAMING_OUTPUT_DIR=spark/streaming/output \
 STREAMING_CHECKPOINT_DIR=spark/streaming/checkpoint \
+STREAMING_TRIGGER_INTERVAL="20 seconds" \
 spark-submit \
   --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 \
   spark/streaming/sentiment_streaming.py
 ```
 
-From inside the Docker network, use `kafka:9092`:
-
-```bash
-docker exec -it \
-  -e KAFKA_BOOTSTRAP_SERVERS=kafka:9092 \
-  -e KAFKA_TOPIC=social_posts_raw \
-  spark-master /opt/spark/bin/spark-submit \
-  --master spark://spark-master:7077 \
-  --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 \
-  --conf spark.executorEnv.KAFKA_BOOTSTRAP_SERVERS=kafka:9092 \
-  --conf spark.executorEnv.KAFKA_TOPIC=social_posts_raw \
-  /opt/spark-jobs/streaming/sentiment_streaming.py
-```
+`STREAMING_TRIGGER_INTERVAL` is shortened for class demos. If you omit it, the
+job uses the assignment-style 2-minute windows.
 
 The streaming job writes:
 
@@ -166,6 +158,9 @@ Outputs:
 - `spark/batch/output/active_users.png`
 - `spark/batch/output/engagement_by_hashtag.png`
 
+These files are generated locally when the batch job runs and are intentionally
+not committed to Git.
+
 ## 6. Run tests
 
 ```bash
@@ -189,6 +184,7 @@ The tests validate:
 | `BATCH_OUTPUT_DIR` | `spark/batch/output` | Spark batch |
 | `STREAMING_OUTPUT_DIR` | `spark/streaming/output` | Spark streaming |
 | `STREAMING_CHECKPOINT_DIR` | `spark/streaming/checkpoint` | Spark streaming |
+| `STREAMING_TRIGGER_INTERVAL` | `2 minutes` | Spark streaming |
 | `KAFKA_PARTITIONS` | `1` | Topic script |
 | `KAFKA_REPLICATION_FACTOR` | `1` | Topic script |
 
