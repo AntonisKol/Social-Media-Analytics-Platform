@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Mission: make sure Kafka has the topic that carries social posts through the pipeline.
+# Run this if you want to create or verify the topic manually before the demo.
 set -euo pipefail
 
 CONTAINER="${KAFKA_CONTAINER:-kafka}"
