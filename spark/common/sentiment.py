@@ -2,7 +2,6 @@ from textblob import TextBlob
 
 
 def analyse_sentiment(text):
-    """Classify text into the sentiment buckets used by the streaming job."""
     if not text:
         return "neutral"
 
