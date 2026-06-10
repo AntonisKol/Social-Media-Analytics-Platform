@@ -1,8 +1,10 @@
 .venv/
 __pycache__/
+.pytest_cache/
 *.pyc
 .DS_Store
-data/sample_posts.json
+spark/common.zip
 spark/streaming/checkpoint/
 spark/streaming/output/
 **/.*.crc
+**/_SUCCESS

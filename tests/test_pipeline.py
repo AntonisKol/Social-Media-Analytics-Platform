@@ -1,12 +1,3 @@
-"""
-Phase 5: Pipeline tests
-Covers:
-1. Sentiment accuracy validation (TextBlob classifier)
-2. Simulator output validation (schema, field types, location enrichment)
-3. Sample data validation (100+ records, required fields)
-4. Hashtag extraction validation
-"""
-
 import json
 import sys
 import os
@@ -22,8 +13,6 @@ from common.hashtags import extract_hashtags
 from common.sentiment import analyse_sentiment
 from simulator import generate_post
 
-
-# ── 1. Sentiment accuracy tests ──────────────────────────────────────────────────
 
 class TestSentimentClassifier:
 
@@ -61,9 +50,6 @@ class TestSentimentClassifier:
     def test_hashtag_text_gets_classified(self):
         result = analyse_sentiment("Great results today! #Kafka #Spark #AI")
         assert result in {"positive", "negative", "neutral"}
-
-
-# ── 2. Simulator schema validation ───────────────────────────────────────────────
 
 REQUIRED_FIELDS = {"post_id", "user_id", "text", "timestamp", "likes", "retweets", "location"}
 
@@ -117,8 +103,6 @@ class TestSimulatorSchema:
         assert post["location"] in VALID_CITIES
 
 
-# ── 3. Sample data file validation ───────────────────────────────────────────────
-
 SAMPLE_FILE = os.path.join(ROOT_DIR, "data", "sample_posts.json")
 
 
@@ -164,8 +148,6 @@ class TestSampleData:
             assert hashtags, f"Record {i} has no extractable hashtags"
             assert all(tag.startswith("#") for tag in hashtags)
 
-
-# ── 4. Hashtag extraction validation ─────────────────────────────────────────────
 
 class TestHashtagExtraction:
 

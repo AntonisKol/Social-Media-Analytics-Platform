@@ -13,21 +13,17 @@ if str(SPARK_ROOT) not in sys.path:
 
 from common.hashtags import HASHTAG_PATTERN
 
-# Runtime configuration. Defaults are for host-run spark-submit against Docker Compose.
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9094")
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "social_posts_raw")
 OUTPUT_DIR = os.getenv("BATCH_OUTPUT_DIR", str(Path(__file__).resolve().parent / "output"))
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# create Spark session — Kafka connector loaded at submit time via --packages
 spark = SparkSession.builder \
     .appName("SocialMediaBatchAnalysis") \
     .getOrCreate()
 
 spark.sparkContext.setLogLevel("ERROR")
 
-# schema must match the JSON format produced by the simulator
-# location field included after Phase 2 enrichment was implemented
 post_schema = StructType([
     StructField("post_id", StringType(), True),
     StructField("user_id", StringType(), True),
@@ -38,9 +34,6 @@ post_schema = StructType([
     StructField("location", StringType(), True)
 ])
 
-# read all historical messages from Kafka as a one-time batch
-# startingOffsets=earliest reads from the very first message ever stored
-# endingOffsets=latest stops at the most recent message at job start time
 raw_df = spark.read \
     .format("kafka") \
     .option("kafka.bootstrap.servers", KAFKA_BOOTSTRAP_SERVERS) \
@@ -49,7 +42,6 @@ raw_df = spark.read \
     .option("endingOffsets", "latest") \
     .load()
 
-# parse the JSON payload from the Kafka value column
 posts_df = raw_df \
     .select(from_json(col("value").cast("string"), post_schema).alias("post")) \
     .select(
@@ -62,17 +54,14 @@ posts_df = raw_df \
     ) \
     .filter(col("post_id").isNotNull())
 
-# extract every hashtag so multi-tag posts contribute to each hashtag metric
 posts_df = posts_df.withColumn(
     "hashtag", explode(regexp_extract_all(col("text"), lit(HASHTAG_PATTERN), 0))
 )
 
-# combine likes and retweets into a single engagement score
 posts_df = posts_df.withColumn(
     "engagement", col("likes") + col("retweets")
 )
 
-# --- Analysis 1: Top 10 hashtags by post count ---
 top_hashtags = posts_df \
     .filter(col("hashtag") != "") \
     .groupBy("hashtag") \
@@ -94,7 +83,6 @@ plt.tight_layout()
 plt.savefig(f"{OUTPUT_DIR}/top_hashtags.png")
 plt.close()
 
-# --- Analysis 2: Most active users by post count ---
 active_users = posts_df \
     .groupBy("user_id") \
     .agg(count("*").alias("post_count")) \
@@ -115,7 +103,6 @@ plt.tight_layout()
 plt.savefig(f"{OUTPUT_DIR}/active_users.png")
 plt.close()
 
-# --- Analysis 3: Average engagement per hashtag ---
 engagement_by_hashtag = posts_df \
     .filter(col("hashtag") != "") \
     .groupBy("hashtag") \

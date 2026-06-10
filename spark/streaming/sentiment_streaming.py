@@ -12,13 +12,11 @@ if str(SPARK_ROOT) not in sys.path:
 from common.hashtags import HASHTAG_PATTERN
 from common.sentiment import analyse_sentiment
 
-# Runtime configuration. Defaults are for host-run spark-submit against Docker Compose.
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9094")
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "social_posts_raw")
 CHECKPOINT_DIR = os.getenv("STREAMING_CHECKPOINT_DIR", str(Path(__file__).resolve().parent / "checkpoint"))
 OUTPUT_DIR = os.getenv("STREAMING_OUTPUT_DIR", str(Path(__file__).resolve().parent / "output"))
 
-# create Spark session — Kafka connector package loaded at submit time via --packages
 spark = SparkSession.builder \
     .appName("SocialMediaSentimentStreaming") \
     .config("spark.sql.shuffle.partitions", "3") \
@@ -26,8 +24,6 @@ spark = SparkSession.builder \
 
 spark.sparkContext.setLogLevel("ERROR")
 
-# schema matching the JSON format produced by the simulator
-# location field added after Phase 2 enrichment was implemented in the simulator
 post_schema = StructType([
     StructField("post_id", StringType(), True),
     StructField("user_id", StringType(), True),
@@ -38,10 +34,8 @@ post_schema = StructType([
     StructField("location", StringType(), True)
 ])
 
-# register as Spark UDF so it can be applied to DataFrame columns
 sentiment_udf = udf(analyse_sentiment, StringType())
 
-# read live stream from Kafka topic social_posts_raw
 raw_stream = spark.readStream \
     .format("kafka") \
     .option("kafka.bootstrap.servers", KAFKA_BOOTSTRAP_SERVERS) \
@@ -50,7 +44,6 @@ raw_stream = spark.readStream \
     .option("failOnDataLoss", "false") \
     .load()
 
-# Kafka value is raw bytes — cast to string then parse as JSON using the schema
 parsed_stream = raw_stream \
     .select(
         from_json(col("value").cast("string"), post_schema).alias("post"),
@@ -66,13 +59,10 @@ parsed_stream = raw_stream \
         col("kafka_timestamp")
     )
 
-# enrich each post: classify sentiment and emit one row per hashtag
 enriched_stream = parsed_stream \
     .withColumn("sentiment", sentiment_udf(col("text"))) \
     .withColumn("hashtag", explode(regexp_extract_all(col("text"), lit(HASHTAG_PATTERN), 0)))
 
-# aggregate into 2-minute tumbling windows grouped by hashtag
-# counts total posts and breaks them down by sentiment bucket
 windowed_counts = enriched_stream \
     .withWatermark("kafka_timestamp", "10 minutes") \
     .groupBy(
@@ -86,7 +76,6 @@ windowed_counts = enriched_stream \
         count(when(col("sentiment") == "neutral", 1)).alias("neutral")
     )
 
-# sink 1: console output for live monitoring during demo
 console_query = windowed_counts \
     .writeStream \
     .outputMode("complete") \
@@ -96,8 +85,6 @@ console_query = windowed_counts \
     .option("checkpointLocation", f"{CHECKPOINT_DIR}/console") \
     .start()
 
-# sink 2: file output as required by task ("write results to output file")
-# append mode writes each batch incrementally to parquet files
 file_query = windowed_counts \
     .writeStream \
     .outputMode("append") \
@@ -107,5 +94,4 @@ file_query = windowed_counts \
     .option("checkpointLocation", f"{CHECKPOINT_DIR}/file") \
     .start()
 
-# block until either stream is manually stopped
 spark.streams.awaitAnyTermination()
