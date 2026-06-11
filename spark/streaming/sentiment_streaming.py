@@ -1,5 +1,4 @@
-# Mission: show what is happening right now in the social stream.
-# It reads Kafka posts, labels sentiment, groups hashtags into 2-minute windows, and writes live trend results.
+# Reads Kafka posts, labels sentiment, groups hashtags into 2-minute windows, and writes live trend results.
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, from_json, udf, window, count, when, regexp_extract_all, explode, lit
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType

@@ -1,5 +1,4 @@
-# Mission: give a quick confidence check before the demo.
-# These tests confirm the fake posts, sentiment labels, sample data, and hashtag extraction still behave as expected.
+# Tests confirm the fake posts, sentiment labels, sample data, and hashtag extraction still behave as expected.
 import json
 import os
 import re

@@ -1,5 +1,3 @@
-# Mission: act like a small social media platform for the demo.
-# It creates realistic-looking posts so NiFi, Kafka, and Spark have live data to process.
 from flask import Flask, jsonify
 import random
 import uuid
