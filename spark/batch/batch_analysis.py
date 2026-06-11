@@ -1,12 +1,12 @@
-# Reads collected Kafka posts and turns them into top hashtag, active user, and engagement summaries.
+# Reads collected Kafka posts and turns them into top hashtag, active user, engagement, and location summaries.
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, from_json, regexp_extract_all, count, avg, explode, lit
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType
 import os
 from pathlib import Path
 from datetime import date
-import matplotlib.pyplot as plt
-import seaborn as sns
+import matplotlib.pyplot as plt # for plotting results
+import seaborn as sns # for nicer plots
 
 HASHTAG_PATTERN = r"#\w+"
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9094")
@@ -47,7 +47,7 @@ posts_df = raw_df \
         col("post.text"),
         col("post.likes"),
         col("post.retweets"),
-        col("post.location")
+        col("post.location")  # enriched by NiFi UpdateAttribute before reaching Kafka
     ) \
     .filter(col("post_id").isNotNull())
 
@@ -100,6 +100,7 @@ plt.tight_layout()
 plt.savefig(f"{OUTPUT_DIR}/active_users.png")
 plt.close()
 
+# Calculate average engagement (likes + retweets) per hashtag and show top 10
 engagement_by_hashtag = posts_df \
     .filter(col("hashtag") != "") \
     .groupBy("hashtag") \
@@ -122,6 +123,29 @@ plt.xlabel("Average Engagement")
 plt.ylabel("Hashtag")
 plt.tight_layout()
 plt.savefig(f"{OUTPUT_DIR}/engagement_by_hashtag.png")
+plt.close()
+
+posts_by_location = posts_df \
+    .filter(col("location").isNotNull()) \
+    .groupBy("location") \
+    .agg(
+        count("*").alias("post_count"),
+        avg("engagement").alias("avg_engagement")
+    ) \
+    .orderBy(col("post_count").desc())
+
+posts_by_location.show(truncate=False)
+posts_by_location.coalesce(1).write.mode("overwrite").option("header", "true") \
+    .csv(f"{OUTPUT_DIR}/posts_by_location")
+
+location_pd = posts_by_location.toPandas()
+plt.figure(figsize=(12, 6))
+sns.barplot(data=location_pd, x="post_count", y="location", hue="location", palette="Purples_d", legend=False)
+plt.title("Post Count by City")
+plt.xlabel("Number of Posts")
+plt.ylabel("City")
+plt.tight_layout()
+plt.savefig(f"{OUTPUT_DIR}/posts_by_location.png")
 plt.close()
 
 print("Batch analysis complete. CSVs and plots saved to:", OUTPUT_DIR)

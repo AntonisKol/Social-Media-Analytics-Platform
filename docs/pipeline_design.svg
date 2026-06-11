@@ -80,8 +80,8 @@
   <text x="368" y="313" font-family="'Segoe UI',Arial,sans-serif" font-size="13" fill="#374151">hashtags, and publishes to Kafka</text>
   <line x1="368" y1="328" x2="594" y2="328" stroke="#f1f5f9" stroke-width="1.5"/>
   <text x="368" y="346" font-family="'Courier New',monospace" font-size="11" fill="#94a3b8">nifi/social_media_flow.json</text>
-  <text x="368" y="364" font-family="'Courier New',monospace" font-size="11" fill="#94a3b8">InvokeHTTP → EvaluateJsonPath →</text>
-  <text x="368" y="382" font-family="'Courier New',monospace" font-size="11" fill="#94a3b8">RouteOnAttribute → PublishKafka</text>
+  <text x="368" y="364" font-family="'Courier New',monospace" font-size="11" fill="#94a3b8">InvokeHTTP → EvaluateJsonPath → RouteOnAttribute</text>
+  <text x="368" y="382" font-family="'Courier New',monospace" font-size="11" fill="#94a3b8">→ ExtractText → UpdateAttribute → ReplaceText → PublishKafka</text>
 
   <!-- ============================================================ -->
   <!-- BOX 3: Apache Kafka  x=656 y=199 w=258 h=210                -->

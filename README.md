@@ -103,12 +103,13 @@ the project, not as a one-click NiFi Registry import.
    - Routes `unmatched` flow files (missing required fields) to
      `PublishKafka_error` so bad records never reach Kafka.
 4. `Extract Hashtags` (`ExtractText`)
-   - Regex: `#[A-Za-z0-9_]+`
+   - Regex: `((?:#\w+\s*)+)` — captures all hashtags in one attribute.
 5. `Enrich User Location` (`UpdateAttribute`)
    - Maps `user_id` to a city name (e.g. `U001` → `Athens`).
-6. `Build Enriched JSON` (`AttributesToJSON`)
-   - Writes `post_id,user_id,text,timestamp,likes,retweets,location,hashtags`
-     back to the FlowFile content.
+6. `Build Enriched JSON` (`ReplaceText`)
+   - Rewrites the FlowFile content as a JSON string containing
+     `post_id, user_id, text, timestamp, likes, retweets, location, hashtags`
+     so all enriched fields are in the Kafka message body.
 7. `Publish Enriched Posts to Kafka` (`PublishKafka_2_6`) — `PublishKafka_valid`
    - Bootstrap servers: `kafka:9092`
    - Topic: `social_posts_raw`
@@ -156,9 +157,11 @@ Outputs:
 - `spark/batch/output/top_hashtags`
 - `spark/batch/output/active_users`
 - `spark/batch/output/engagement_by_hashtag`
+- `spark/batch/output/posts_by_location`
 - `spark/batch/output/top_hashtags.png`
 - `spark/batch/output/active_users.png`
 - `spark/batch/output/engagement_by_hashtag.png`
+- `spark/batch/output/posts_by_location.png`
 
 These files are generated locally when the batch job runs and are intentionally
 not committed to Git.

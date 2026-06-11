@@ -2,7 +2,7 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, from_json, udf, window, count, when, regexp_extract_all, explode, lit
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType
-from textblob import TextBlob
+from textblob import TextBlob # Simple sentiment analysis library
 import os
 from pathlib import Path
 
@@ -27,7 +27,7 @@ post_schema = StructType([
     StructField("timestamp", StringType(), True),
     StructField("likes", IntegerType(), True),
     StructField("retweets", IntegerType(), True),
-    StructField("location", StringType(), True)
+    StructField("location", StringType(), True)  # enriched by NiFi UpdateAttribute before reaching Kafka
 ])
 
 def analyse_sentiment(text):
@@ -42,7 +42,7 @@ def analyse_sentiment(text):
     return "neutral"
 
 sentiment_udf = udf(analyse_sentiment, StringType())
-
+# Read from Kafka, parse JSON, extract sentiment and hashtags, then aggregate by window, hashtag, and location. Write results to console and Parquet files.
 raw_stream = spark.readStream \
     .format("kafka") \
     .option("kafka.bootstrap.servers", KAFKA_BOOTSTRAP_SERVERS) \
@@ -50,7 +50,7 @@ raw_stream = spark.readStream \
     .option("startingOffsets", "earliest") \
     .option("failOnDataLoss", "false") \
     .load()
-
+# Parse the JSON value from Kafka, extract fields, and keep the Kafka timestamp for windowing.
 parsed_stream = raw_stream \
     .select(
         from_json(col("value").cast("string"), post_schema).alias("post"),
@@ -65,16 +65,18 @@ parsed_stream = raw_stream \
         col("post.location"),
         col("kafka_timestamp")
     )
-
+# Enrich the stream with sentiment labels and extract hashtags, then explode the hashtag array for aggregation.
 enriched_stream = parsed_stream \
     .withColumn("sentiment", sentiment_udf(col("text"))) \
     .withColumn("hashtag", explode(regexp_extract_all(col("text"), lit(HASHTAG_PATTERN), 0)))
 
+# Group by 2-minute windows, hashtag, and location, then count total posts and sentiment breakdowns.
 windowed_counts = enriched_stream \
     .withWatermark("kafka_timestamp", "10 minutes") \
     .groupBy(
         window(col("kafka_timestamp"), "2 minutes"),
-        col("hashtag")
+        col("hashtag"),
+        col("location"),
     ) \
     .agg(
         count("*").alias("total_posts"),
