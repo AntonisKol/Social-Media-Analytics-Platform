@@ -25,7 +25,7 @@
         "Schema Write Strategy": "No Schema",
         "Output Grouping": "One Line Per Object"
       }
-    },
+    }
   ],
   "processors": [
     {

@@ -64,7 +64,7 @@
   <text x="60" y="313" font-family="'Segoe UI',Arial,sans-serif" font-size="13" fill="#374151">likes and retweet counts on demand</text>
   <line x1="60" y1="328" x2="286" y2="328" stroke="#f1f5f9" stroke-width="1.5"/>
   <text x="60" y="346" font-family="'Courier New',monospace" font-size="11" fill="#94a3b8">simulator/simulator.py</text>
-  <text x="60" y="364" font-family="'Courier New',monospace" font-size="11" fill="#94a3b8">GET /api/posts → JSON array</text>
+  <text x="60" y="364" font-family="'Courier New',monospace" font-size="11" fill="#94a3b8">GET /posts → JSON (single post)</text>
   <text x="60" y="382" font-family="'Courier New',monospace" font-size="11" fill="#94a3b8">Runs in Docker container</text>
 
   <!-- ============================================================ -->
@@ -75,13 +75,13 @@
   <text x="368" y="228" font-family="'Segoe UI',Arial,sans-serif" font-size="15" font-weight="700" fill="#0f172a">Apache NiFi</text>
   <rect x="368" y="235" width="58" height="17" rx="8.5" fill="#d1fae5"/>
   <text x="397" y="247" font-family="Arial,sans-serif" font-size="10" font-weight="700" fill="#065f46" text-anchor="middle">NiFi 1.x</text>
-  <text x="368" y="273" font-family="'Segoe UI',Arial,sans-serif" font-size="13" fill="#374151">Polls API every 5 s via HTTP.</text>
-  <text x="368" y="293" font-family="'Segoe UI',Arial,sans-serif" font-size="13" fill="#374151">Extracts user, text, and hashtag</text>
-  <text x="368" y="313" font-family="'Segoe UI',Arial,sans-serif" font-size="13" fill="#374151">fields, then publishes to Kafka</text>
+  <text x="368" y="273" font-family="'Segoe UI',Arial,sans-serif" font-size="13" fill="#374151">Polls API every 5 s. Validates,</text>
+  <text x="368" y="293" font-family="'Segoe UI',Arial,sans-serif" font-size="13" fill="#374151">enriches with location, extracts</text>
+  <text x="368" y="313" font-family="'Segoe UI',Arial,sans-serif" font-size="13" fill="#374151">hashtags, and publishes to Kafka</text>
   <line x1="368" y1="328" x2="594" y2="328" stroke="#f1f5f9" stroke-width="1.5"/>
   <text x="368" y="346" font-family="'Courier New',monospace" font-size="11" fill="#94a3b8">nifi/social_media_flow.json</text>
-  <text x="368" y="364" font-family="'Courier New',monospace" font-size="11" fill="#94a3b8">InvokeHTTP → EvaluateJsonPath</text>
-  <text x="368" y="382" font-family="'Courier New',monospace" font-size="11" fill="#94a3b8">→ PublishKafka processor</text>
+  <text x="368" y="364" font-family="'Courier New',monospace" font-size="11" fill="#94a3b8">InvokeHTTP → EvaluateJsonPath →</text>
+  <text x="368" y="382" font-family="'Courier New',monospace" font-size="11" fill="#94a3b8">RouteOnAttribute → PublishKafka</text>
 
   <!-- ============================================================ -->
   <!-- BOX 3: Apache Kafka  x=656 y=199 w=258 h=210                -->
@@ -217,7 +217,7 @@
   <text x="72" y="607" font-family="'Courier New',monospace" font-size="12" fill="#475569">docker compose -f infra/docker-compose.yml up -d --build</text>
 
   <!-- NiFi port note -->
-  <text x="610" y="540" font-family="'Segoe UI',Arial,sans-serif" font-size="12" fill="#64748b">NiFi UI: localhost:8080  |  Kafka broker: localhost:9092  |  Spark UI: localhost:8081</text>
+  <text x="610" y="540" font-family="'Segoe UI',Arial,sans-serif" font-size="12" fill="#64748b">NiFi UI: localhost:8080  |  Kafka broker: localhost:9094  |  Spark UI: localhost:8081</text>
   <text x="610" y="607" font-family="'Courier New',monospace" font-size="11" fill="#94a3b8">infra/docker-compose.yml</text>
 
   <!-- ============================================================ -->

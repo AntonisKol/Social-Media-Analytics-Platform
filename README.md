@@ -98,19 +98,22 @@ the project, not as a one-click NiFi Registry import.
 2. `Extract JSON Fields` (`EvaluateJsonPath`)
    - Extracts `post_id`, `user_id`, `text`, `timestamp`, `likes`, `retweets`
      into attributes.
-3. `Extract Hashtags` (`ExtractText`)
+3. `Route Valid Posts` (`RouteOnAttribute`)
+   - Routes `matched` flow files (valid JSON) to `Extract Hashtags`.
+   - Routes `unmatched` flow files (missing required fields) to
+     `PublishKafka_error` so bad records never reach Kafka.
+4. `Extract Hashtags` (`ExtractText`)
    - Regex: `#[A-Za-z0-9_]+`
-4. `Lookup User Location` (`LookupAttribute`)
-   - Uses the mock user-location mapping from `nifi/social_media_flow.json`.
-5. `Build Enriched JSON` (`AttributesToJSON`)
+5. `Enrich User Location` (`UpdateAttribute`)
+   - Maps `user_id` to a city name (e.g. `U001` → `Athens`).
+6. `Build Enriched JSON` (`AttributesToJSON`)
    - Writes `post_id,user_id,text,timestamp,likes,retweets,location,hashtags`
      back to the FlowFile content.
-6. `Publish Enriched Posts to Kafka` (`PublishKafka_2_6`)
+7. `Publish Enriched Posts to Kafka` (`PublishKafka_2_6`) — `PublishKafka_valid`
    - Bootstrap servers: `kafka:9092`
    - Topic: `social_posts_raw`
-
-For a local demo, route failure relationships to `LogAttribute` or terminate
-them after validating the flow.
+8. `PublishKafka_error` (`PublishKafka_2_6`)
+   - Receives unmatched flow files from step 3 for dead-letter handling.
 
 ## 4. Run Spark streaming sentiment analysis
 
