@@ -26,32 +26,6 @@
         "Output Grouping": "One Line Per Object"
       }
     },
-    {
-      "name": "UserLocationLookup",
-      "type": "org.apache.nifi.lookup.SimpleKeyValueLookupService",
-      "properties": {
-        "U001": "New York",
-        "U002": "London",
-        "U003": "Berlin",
-        "U004": "Paris",
-        "U005": "Tokyo",
-        "U006": "Sydney",
-        "U007": "Toronto",
-        "U008": "Amsterdam",
-        "U009": "Singapore",
-        "U010": "Dubai",
-        "U011": "Madrid",
-        "U012": "Rome",
-        "U013": "Chicago",
-        "U014": "Los Angeles",
-        "U015": "São Paulo",
-        "U016": "Mumbai",
-        "U017": "Seoul",
-        "U018": "Mexico City",
-        "U019": "Stockholm",
-        "U020": "Cape Town"
-      }
-    }
   ],
   "processors": [
     {
@@ -101,23 +75,19 @@
         "hashtags": "(?s).*(#[A-Za-z0-9_]+(?:\\s+#[A-Za-z0-9_]+)*).*"
       },
       "relationships": {
-        "Matched": "Lookup User Location",
-        "Unmatched": "Lookup User Location"
+        "Matched": "Enrich User Location",
+        "Unmatched": "Enrich User Location"
       }
     },
     {
-      "id": "lookup-user-location",
-      "name": "Lookup User Location",
-      "type": "org.apache.nifi.processors.attributes.LookupAttribute",
+      "id": "enrich-user-location",
+      "name": "Enrich User Location",
+      "type": "org.apache.nifi.processors.attributes.UpdateAttribute",
       "properties": {
-        "Lookup Service": "UserLocationLookup",
-        "include.empty.values": "false",
-        "location": "${user_id}"
+        "location": "${user_id:equals('U001'):ifElse('Athens',${user_id:equals('U002'):ifElse('London',${user_id:equals('U003'):ifElse('Berlin',${user_id:equals('U004'):ifElse('Paris',${user_id:equals('U005'):ifElse('Madrid',${user_id:equals('U006'):ifElse('Rome',${user_id:equals('U007'):ifElse('Amsterdam',${user_id:equals('U008'):ifElse('Brussels',${user_id:equals('U009'):ifElse('Vienna',${user_id:equals('U010'):ifElse('Lisbon',${user_id:equals('U011'):ifElse('Stockholm',${user_id:equals('U012'):ifElse('Oslo',${user_id:equals('U013'):ifElse('Copenhagen',${user_id:equals('U014'):ifElse('Helsinki',${user_id:equals('U015'):ifElse('Warsaw',${user_id:equals('U016'):ifElse('Prague',${user_id:equals('U017'):ifElse('Budapest',${user_id:equals('U018'):ifElse('Bucharest',${user_id:equals('U019'):ifElse('Sofia','Istanbul')})})})})})})})})})})})})})})})})})})}}"
       },
       "relationships": {
-        "Matched": "Build Enriched JSON",
-        "Unmatched": "Build Enriched JSON",
-        "Failure": "failure"
+        "success": "Build Enriched JSON"
       }
     },
     {
@@ -153,10 +123,10 @@
   "connections": [
     ["Poll Mock Social API", "Response", "Extract JSON Fields"],
     ["Extract JSON Fields", "Matched", "Extract Hashtags"],
-    ["Extract Hashtags", "Matched", "Lookup User Location"],
-    ["Extract Hashtags", "Unmatched", "Lookup User Location"],
-    ["Lookup User Location", "Matched", "Build Enriched JSON"],
-    ["Lookup User Location", "Unmatched", "Build Enriched JSON"],
+    ["Extract Hashtags", "Matched", "Enrich User Location"],
+    ["Extract Hashtags", "Unmatched", "Enrich User Location"],
+    ["Enrich User Location", "Matched", "Build Enriched JSON"],
+    ["Enrich User Location", "Unmatched", "Build Enriched JSON"],
     ["Build Enriched JSON", "Success", "Publish Enriched Posts to Kafka"]
   ],
   "failureHandling": {

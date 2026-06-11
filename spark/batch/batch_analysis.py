@@ -4,13 +4,15 @@ from pyspark.sql.functions import col, from_json, regexp_extract_all, count, avg
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType
 import os
 from pathlib import Path
+from datetime import date
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 HASHTAG_PATTERN = r"#\w+"
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9094")
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "social_posts_raw")
-OUTPUT_DIR = os.getenv("BATCH_OUTPUT_DIR", str(Path(__file__).resolve().parent / "output"))
+_base_output = os.getenv("BATCH_OUTPUT_DIR", str(Path(__file__).resolve().parent / "output"))
+OUTPUT_DIR = os.path.join(_base_output, str(date.today()))
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 spark = SparkSession.builder \

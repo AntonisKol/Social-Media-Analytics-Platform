@@ -1,4 +1,3 @@
-<!-- Mission: explain how the project turns social posts into live sentiment trends and daily engagement reports. -->
 # Social Media Analytics Platform
 
 Real-time social media analytics prototype using a mock REST API, Apache NiFi,

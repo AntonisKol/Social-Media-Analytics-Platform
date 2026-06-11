@@ -71,14 +71,7 @@ class TestSentimentClassifier:
         result = analyse_sentiment("Great results today! #Kafka #Spark #AI")
         assert result in {"positive", "negative", "neutral"}
 
-REQUIRED_FIELDS = {"post_id", "user_id", "text", "timestamp", "likes", "retweets", "location"}
-
-VALID_CITIES = {
-    "New York", "London", "Berlin", "Paris", "Tokyo",
-    "Sydney", "Toronto", "Amsterdam", "Singapore", "Dubai",
-    "Madrid", "Rome", "Chicago", "Los Angeles", "São Paulo",
-    "Mumbai", "Seoul", "Mexico City", "Stockholm", "Cape Town"
-}
+REQUIRED_FIELDS = {"post_id", "user_id", "text", "timestamp", "likes", "retweets"}
 
 
 class TestSimulatorSchema:
@@ -113,14 +106,6 @@ class TestSimulatorSchema:
         post = generate_post()
         assert "#" in post["text"]
 
-    def test_location_is_non_empty_string(self):
-        post = generate_post()
-        assert isinstance(post["location"], str)
-        assert len(post["location"]) > 0
-
-    def test_location_is_from_mock_lookup(self):
-        post = generate_post()
-        assert post["location"] in VALID_CITIES
 
 
 SAMPLE_FILE = os.path.join(ROOT_DIR, "data", "sample_posts.json")
@@ -159,7 +144,6 @@ class TestSampleData:
             assert isinstance(post["timestamp"], str), f"Record {i} timestamp is not a string"
             assert isinstance(post["likes"], int), f"Record {i} likes is not an integer"
             assert isinstance(post["retweets"], int), f"Record {i} retweets is not an integer"
-            assert isinstance(post["location"], str), f"Record {i} location is not a string"
 
     def test_sample_records_have_extractable_hashtags(self):
         posts = self._load_posts()
