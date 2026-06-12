@@ -1,5 +1,6 @@
 # Mission: keep local environments and generated run files out of the repository.
 .venv/
+.claude/
 __pycache__/
 .pytest_cache/
 *.pyc
