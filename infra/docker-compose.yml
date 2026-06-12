@@ -76,7 +76,9 @@ services:
       - pipeline-network
 
   spark-master:
-    image: apache/spark:3.5.1
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
     container_name: spark-master
     entrypoint: ["/opt/spark/sbin/start-master.sh"]
     environment:
@@ -90,7 +92,9 @@ services:
       - pipeline-network
 
   spark-worker:
-    image: apache/spark:3.5.1
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
     container_name: spark-worker
     entrypoint: ["/opt/spark/sbin/start-worker.sh", "spark://spark-master:7077"]
     environment:

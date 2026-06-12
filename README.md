@@ -118,20 +118,26 @@ the project, not as a one-click NiFi Registry import.
 
 ## 4. Run Spark streaming sentiment analysis
 
-From the host machine, use the external Kafka listener:
+The job runs inside the Docker cluster so both the driver and workers reach
+Kafka via the internal `kafka:9092` listener. Output lands on your host through
+the volume mount (`../spark:/opt/spark-jobs`).
 
 ```bash
 rm -rf spark/streaming/checkpoint spark/streaming/output
 
-KAFKA_BOOTSTRAP_SERVERS=localhost:9094 \
-KAFKA_TOPIC=social_posts_raw \
-STREAMING_OUTPUT_DIR=spark/streaming/output \
-STREAMING_CHECKPOINT_DIR=spark/streaming/checkpoint \
-STREAMING_TRIGGER_INTERVAL="20 seconds" \
-spark-submit \
-  --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 \
-  --py-files spark/shared.py \
-  spark/streaming/sentiment_streaming.py
+docker exec \
+  -e KAFKA_BOOTSTRAP_SERVERS=kafka:9092 \
+  -e KAFKA_TOPIC=social_posts_raw \
+  -e STREAMING_OUTPUT_DIR=/opt/spark-jobs/streaming/output \
+  -e STREAMING_CHECKPOINT_DIR=/opt/spark-jobs/streaming/checkpoint \
+  -e STREAMING_TRIGGER_INTERVAL="20 seconds" \
+  spark-master \
+  /opt/spark/bin/spark-submit \
+    --master spark://spark-master:7077 \
+    --conf spark.jars.ivy=/tmp/.ivy2 \
+    --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 \
+    --py-files /opt/spark-jobs/shared.py \
+    /opt/spark-jobs/streaming/sentiment_streaming.py
 ```
 
 `STREAMING_TRIGGER_INTERVAL` is shortened for class demos. If you omit it, the
@@ -145,13 +151,17 @@ The streaming job writes:
 ## 5. Run Spark batch engagement reports
 
 ```bash
-KAFKA_BOOTSTRAP_SERVERS=localhost:9094 \
-KAFKA_TOPIC=social_posts_raw \
-BATCH_OUTPUT_DIR=spark/batch/output \
-spark-submit \
-  --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 \
-  --py-files spark/shared.py \
-  spark/batch/batch_analysis.py
+docker exec \
+  -e KAFKA_BOOTSTRAP_SERVERS=kafka:9092 \
+  -e KAFKA_TOPIC=social_posts_raw \
+  -e BATCH_OUTPUT_DIR=/opt/spark-jobs/batch/output \
+  spark-master \
+  /opt/spark/bin/spark-submit \
+    --master spark://spark-master:7077 \
+    --conf spark.jars.ivy=/tmp/.ivy2 \
+    --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 \
+    --py-files /opt/spark-jobs/shared.py \
+    /opt/spark-jobs/batch/batch_analysis.py
 ```
 
 Outputs (written to a date-stamped subdirectory, e.g. `spark/batch/output/2026-06-12/`):
@@ -186,7 +196,7 @@ The tests validate:
 
 | Variable | Default | Used by |
 | --- | --- | --- |
-| `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9094` | Spark batch/streaming |
+| `KAFKA_BOOTSTRAP_SERVERS` | `kafka:9092` (cluster) / `localhost:9094` (host) | Spark batch/streaming |
 | `KAFKA_TOPIC` | `social_posts_raw` | Spark batch/streaming/topic script |
 | `BATCH_OUTPUT_DIR` | `spark/batch/output` | Spark batch |
 | `STREAMING_OUTPUT_DIR` | `spark/streaming/output` | Spark streaming |
