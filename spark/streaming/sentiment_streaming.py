@@ -32,7 +32,7 @@ def analyse_sentiment(text):
         return "negative"
     return "neutral"
 
-sentiment_udf = udf(analyse_sentiment, StringType())
+sentiment_udf = udf(analyse_sentiment)
 # Read from Kafka, parse JSON, extract sentiment and hashtags, then aggregate by window, hashtag, and location. Write results to console and Parquet files.
 raw_stream = spark.readStream \
     .format("kafka") \

@@ -17,7 +17,7 @@ HASHTAGS = [
 USERS = [f"U{str(i).zfill(3)}" for i in range(1, 21)]
 
 def generate_post():
-    #  Generates a random social media post with a unique ID, user, text (including hashtags), timestamp, and engagement metrics (likes and retweets).
+    #  Generates a random social media post.
     selected_hashtags = random.sample(HASHTAGS, k=random.randint(1, 3))
     post_text = fake.sentence(nb_words=8) + " " + " ".join(selected_hashtags)
     user_id = random.choice(USERS)

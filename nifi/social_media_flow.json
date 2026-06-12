@@ -62,9 +62,22 @@
         "retweets": "$.retweets"
       },
       "relationships": {
-        "Matched": "Extract Hashtags",
+        "Matched": "Route Valid Posts",
         "Unmatched": "failure",
         "Failure": "failure"
+      }
+    },
+    {
+      "id": "route-valid-posts",
+      "name": "Route Valid Posts",
+      "type": "org.apache.nifi.processors.standard.RouteOnAttribute",
+      "properties": {
+        "Routing Strategy": "Route to 'matched' if all match",
+        "matched": "${post_id:isEmpty():not():and(${user_id:isEmpty():not()})}"
+      },
+      "relationships": {
+        "matched": "Extract Hashtags",
+        "unmatched": "Dead Letter Kafka"
       }
     },
     {
@@ -84,7 +97,7 @@
       "name": "Enrich User Location",
       "type": "org.apache.nifi.processors.attributes.UpdateAttribute",
       "properties": {
-        "location": "${user_id:equals('U001'):ifElse('Athens',${user_id:equals('U002'):ifElse('London',${user_id:equals('U003'):ifElse('Berlin',${user_id:equals('U004'):ifElse('Paris',${user_id:equals('U005'):ifElse('Madrid',${user_id:equals('U006'):ifElse('Rome',${user_id:equals('U007'):ifElse('Amsterdam',${user_id:equals('U008'):ifElse('Brussels',${user_id:equals('U009'):ifElse('Vienna',${user_id:equals('U010'):ifElse('Lisbon',${user_id:equals('U011'):ifElse('Stockholm',${user_id:equals('U012'):ifElse('Oslo',${user_id:equals('U013'):ifElse('Copenhagen',${user_id:equals('U014'):ifElse('Helsinki',${user_id:equals('U015'):ifElse('Warsaw',${user_id:equals('U016'):ifElse('Prague',${user_id:equals('U017'):ifElse('Budapest',${user_id:equals('U018'):ifElse('Bucharest',${user_id:equals('U019'):ifElse('Sofia','Istanbul')})})})})})})})})})})})})})})})})})})}}"
+        "location": "${user_id:equals('U001'):ifElse('Athens',${user_id:equals('U002'):ifElse('London',${user_id:equals('U003'):ifElse('Berlin',${user_id:equals('U004'):ifElse('Paris',${user_id:equals('U005'):ifElse('Madrid',${user_id:equals('U006'):ifElse('Rome',${user_id:equals('U007'):ifElse('Amsterdam',${user_id:equals('U008'):ifElse('Brussels',${user_id:equals('U009'):ifElse('Vienna',${user_id:equals('U010'):ifElse('Lisbon',${user_id:equals('U011'):ifElse('Stockholm',${user_id:equals('U012'):ifElse('Oslo',${user_id:equals('U013'):ifElse('Copenhagen',${user_id:equals('U014'):ifElse('Helsinki',${user_id:equals('U015'):ifElse('Warsaw',${user_id:equals('U016'):ifElse('Prague',${user_id:equals('U017'):ifElse('Budapest',${user_id:equals('U018'):ifElse('Bucharest',${user_id:equals('U019'):ifElse('Sofia','Istanbul')})})})})})})})})})})})})})})})})})})})}}"
       },
       "relationships": {
         "success": "Build Enriched JSON"
@@ -93,15 +106,16 @@
     {
       "id": "build-enriched-json",
       "name": "Build Enriched JSON",
-      "type": "org.apache.nifi.processors.standard.AttributesToJSON",
+      "type": "org.apache.nifi.processors.standard.ReplaceText",
       "properties": {
-        "Destination": "flowfile-content",
-        "Attributes List": "post_id,user_id,text,timestamp,likes,retweets,location,hashtags",
-        "Null Value": "false"
+        "Search Value": "(?s)(.*)",
+        "Replacement Value": "{\"post_id\":\"${post_id}\",\"user_id\":\"${user_id}\",\"text\":\"${text}\",\"timestamp\":\"${timestamp}\",\"likes\":${likes},\"retweets\":${retweets},\"location\":\"${location}\",\"hashtags\":\"${hashtags}\"}",
+        "Replacement Strategy": "Always Replace",
+        "Evaluation Mode": "Entire text"
       },
       "relationships": {
-        "Success": "Publish Enriched Posts to Kafka",
-        "Failure": "failure"
+        "success": "Publish Enriched Posts to Kafka",
+        "failure": "failure"
       }
     },
     {
@@ -115,19 +129,34 @@
         "message.key.field": "${post_id}"
       },
       "relationships": {
-        "Success": "success",
-        "Failure": "failure"
+        "success": "success",
+        "failure": "failure"
+      }
+    },
+    {
+      "id": "dead-letter-kafka",
+      "name": "Dead Letter Kafka",
+      "type": "org.apache.nifi.processors.kafka.pubsub.PublishKafka_2_6",
+      "properties": {
+        "bootstrap.servers": "${kafka.bootstrap.servers}",
+        "topic": "social_posts_dead_letter",
+        "acks": "1"
+      },
+      "relationships": {
+        "success": "success",
+        "failure": "failure"
       }
     }
   ],
   "connections": [
     ["Poll Mock Social API", "Response", "Extract JSON Fields"],
-    ["Extract JSON Fields", "Matched", "Extract Hashtags"],
+    ["Extract JSON Fields", "Matched", "Route Valid Posts"],
+    ["Route Valid Posts", "matched", "Extract Hashtags"],
+    ["Route Valid Posts", "unmatched", "Dead Letter Kafka"],
     ["Extract Hashtags", "Matched", "Enrich User Location"],
     ["Extract Hashtags", "Unmatched", "Enrich User Location"],
-    ["Enrich User Location", "Matched", "Build Enriched JSON"],
-    ["Enrich User Location", "Unmatched", "Build Enriched JSON"],
-    ["Build Enriched JSON", "Success", "Publish Enriched Posts to Kafka"]
+    ["Enrich User Location", "success", "Build Enriched JSON"],
+    ["Build Enriched JSON", "success", "Publish Enriched Posts to Kafka"]
   ],
   "failureHandling": {
     "failure": "LogAttribute or terminate during local demo",

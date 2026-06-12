@@ -31,6 +31,7 @@ raw_df = spark.read \
     .option("endingOffsets", "latest") \
     .load()
 
+# One row per post. engagement added here so all analyses share the same base.
 posts_df = raw_df \
     .select(from_json(col("value").cast("string"), post_schema).alias("post")) \
     .select(
@@ -41,36 +42,12 @@ posts_df = raw_df \
         col("post.retweets"),
         col("post.location")  # enriched by NiFi UpdateAttribute before reaching Kafka
     ) \
-    .filter(col("post_id").isNotNull())
+    .filter(col("post_id").isNotNull()) \
+    .withColumn("engagement", col("likes") + col("retweets"))
 
-posts_df = posts_df.withColumn(
-    "hashtag", explode(regexp_extract_all(col("text"), lit(HASHTAG_PATTERN), 0))
-)
-
-posts_df = posts_df.withColumn(
-    "engagement", col("likes") + col("retweets")
-)
-
-top_hashtags = posts_df \
-    .filter(col("hashtag") != "") \
-    .groupBy("hashtag") \
-    .agg(count("*").alias("post_count")) \
-    .orderBy(col("post_count").desc()) \
-    .limit(10)
-
-top_hashtags.show(truncate=False)
-top_hashtags.coalesce(1).write.mode("overwrite").option("header", "true") \
-    .csv(f"{OUTPUT_DIR}/top_hashtags")
-
-top_hashtags_pd = top_hashtags.toPandas()
-plt.figure(figsize=(10, 6))
-sns.barplot(data=top_hashtags_pd, x="post_count", y="hashtag", hue="hashtag", palette="Blues_d", legend=False)
-plt.title("Top 10 Hashtags by Post Count")
-plt.xlabel("Number of Posts")
-plt.ylabel("Hashtag")
-plt.tight_layout()
-plt.savefig(f"{OUTPUT_DIR}/top_hashtags.png")
-plt.close()
+# active_users and posts_by_location must be computed before the hashtag explode.
+# After explode, posts_df has one row per hashtag per post, so count(*) would
+# inflate those numbers by the average hashtag count per post.
 
 active_users = posts_df \
     .groupBy("user_id") \
@@ -90,31 +67,6 @@ plt.xlabel("Number of Posts")
 plt.ylabel("User ID")
 plt.tight_layout()
 plt.savefig(f"{OUTPUT_DIR}/active_users.png")
-plt.close()
-
-# Calculate average engagement (likes + retweets) per hashtag and show top 10
-engagement_by_hashtag = posts_df \
-    .filter(col("hashtag") != "") \
-    .groupBy("hashtag") \
-    .agg(
-        count("*").alias("post_count"),
-        avg("engagement").alias("avg_engagement")
-    ) \
-    .orderBy(col("avg_engagement").desc()) \
-    .limit(10)
-
-engagement_by_hashtag.show(truncate=False)
-engagement_by_hashtag.coalesce(1).write.mode("overwrite").option("header", "true") \
-    .csv(f"{OUTPUT_DIR}/engagement_by_hashtag")
-
-engagement_pd = engagement_by_hashtag.toPandas()
-plt.figure(figsize=(10, 6))
-sns.barplot(data=engagement_pd, x="avg_engagement", y="hashtag", hue="hashtag", palette="Oranges_d", legend=False)
-plt.title("Average Engagement (Likes + Retweets) per Hashtag")
-plt.xlabel("Average Engagement")
-plt.ylabel("Hashtag")
-plt.tight_layout()
-plt.savefig(f"{OUTPUT_DIR}/engagement_by_hashtag.png")
 plt.close()
 
 posts_by_location = posts_df \
@@ -138,6 +90,57 @@ plt.xlabel("Number of Posts")
 plt.ylabel("City")
 plt.tight_layout()
 plt.savefig(f"{OUTPUT_DIR}/posts_by_location.png")
+plt.close()
+
+# Explode hashtags — from here each row represents one hashtag occurrence in a post.
+hashtag_df = posts_df.withColumn(
+    "hashtag", explode(regexp_extract_all(col("text"), lit(HASHTAG_PATTERN), 0))
+)
+
+top_hashtags = hashtag_df \
+    .filter(col("hashtag") != "") \
+    .groupBy("hashtag") \
+    .agg(count("*").alias("post_count")) \
+    .orderBy(col("post_count").desc()) \
+    .limit(10)
+
+top_hashtags.show(truncate=False)
+top_hashtags.coalesce(1).write.mode("overwrite").option("header", "true") \
+    .csv(f"{OUTPUT_DIR}/top_hashtags")
+
+top_hashtags_pd = top_hashtags.toPandas()
+plt.figure(figsize=(10, 6))
+sns.barplot(data=top_hashtags_pd, x="post_count", y="hashtag", hue="hashtag", palette="Blues_d", legend=False)
+plt.title("Top 10 Hashtags by Post Count")
+plt.xlabel("Number of Posts")
+plt.ylabel("Hashtag")
+plt.tight_layout()
+plt.savefig(f"{OUTPUT_DIR}/top_hashtags.png")
+plt.close()
+
+# Calculate average engagement (likes + retweets) per hashtag and show top 10
+engagement_by_hashtag = hashtag_df \
+    .filter(col("hashtag") != "") \
+    .groupBy("hashtag") \
+    .agg(
+        count("*").alias("post_count"),
+        avg("engagement").alias("avg_engagement")
+    ) \
+    .orderBy(col("avg_engagement").desc()) \
+    .limit(10)
+
+engagement_by_hashtag.show(truncate=False)
+engagement_by_hashtag.coalesce(1).write.mode("overwrite").option("header", "true") \
+    .csv(f"{OUTPUT_DIR}/engagement_by_hashtag")
+
+engagement_pd = engagement_by_hashtag.toPandas()
+plt.figure(figsize=(10, 6))
+sns.barplot(data=engagement_pd, x="avg_engagement", y="hashtag", hue="hashtag", palette="Oranges_d", legend=False)
+plt.title("Average Engagement (Likes + Retweets) per Hashtag")
+plt.xlabel("Average Engagement")
+plt.ylabel("Hashtag")
+plt.tight_layout()
+plt.savefig(f"{OUTPUT_DIR}/engagement_by_hashtag.png")
 plt.close()
 
 print("Batch analysis complete. CSVs and plots saved to:", OUTPUT_DIR)

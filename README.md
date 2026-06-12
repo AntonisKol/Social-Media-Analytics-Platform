@@ -154,16 +154,16 @@ spark-submit \
   spark/batch/batch_analysis.py
 ```
 
-Outputs:
+Outputs (written to a date-stamped subdirectory, e.g. `spark/batch/output/2026-06-12/`):
 
-- `spark/batch/output/top_hashtags`
-- `spark/batch/output/active_users`
-- `spark/batch/output/engagement_by_hashtag`
-- `spark/batch/output/posts_by_location`
-- `spark/batch/output/top_hashtags.png`
-- `spark/batch/output/active_users.png`
-- `spark/batch/output/engagement_by_hashtag.png`
-- `spark/batch/output/posts_by_location.png`
+- `spark/batch/output/<date>/top_hashtags`
+- `spark/batch/output/<date>/active_users`
+- `spark/batch/output/<date>/engagement_by_hashtag`
+- `spark/batch/output/<date>/posts_by_location`
+- `spark/batch/output/<date>/top_hashtags.png`
+- `spark/batch/output/<date>/active_users.png`
+- `spark/batch/output/<date>/engagement_by_hashtag.png`
+- `spark/batch/output/<date>/posts_by_location.png`
 
 These files are generated locally when the batch job runs and are intentionally
 not committed to Git.
