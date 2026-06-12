@@ -1,12 +1,13 @@
 # Reads Kafka posts, labels sentiment, groups hashtags into 2-minute windows, and writes live trend results.
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, from_json, udf, window, count, when, regexp_extract_all, explode, lit
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType
 from textblob import TextBlob # Simple sentiment analysis library
-import os
+from shared import HASHTAG_PATTERN, post_schema
 from pathlib import Path
-
-HASHTAG_PATTERN = r"#\w+"
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9094")
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "social_posts_raw")
 CHECKPOINT_DIR = os.getenv("STREAMING_CHECKPOINT_DIR", str(Path(__file__).resolve().parent / "checkpoint"))
@@ -19,16 +20,6 @@ spark = SparkSession.builder \
     .getOrCreate()
 
 spark.sparkContext.setLogLevel("ERROR")
-
-post_schema = StructType([
-    StructField("post_id", StringType(), True),
-    StructField("user_id", StringType(), True),
-    StructField("text", StringType(), True),
-    StructField("timestamp", StringType(), True),
-    StructField("likes", IntegerType(), True),
-    StructField("retweets", IntegerType(), True),
-    StructField("location", StringType(), True)  # enriched by NiFi UpdateAttribute before reaching Kafka
-])
 
 def analyse_sentiment(text):
     if not text:

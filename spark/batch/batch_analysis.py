@@ -1,14 +1,16 @@
 # Reads collected Kafka posts and turns them into top hashtag, active user, engagement, and location summaries.
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, from_json, regexp_extract_all, count, avg, explode, lit
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType
-import os
+from shared import HASHTAG_PATTERN, post_schema
 from pathlib import Path
 from datetime import date
 import matplotlib.pyplot as plt # for plotting results
 import seaborn as sns # for nicer plots
 
-HASHTAG_PATTERN = r"#\w+"
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9094")
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "social_posts_raw")
 _base_output = os.getenv("BATCH_OUTPUT_DIR", str(Path(__file__).resolve().parent / "output"))
@@ -20,16 +22,6 @@ spark = SparkSession.builder \
     .getOrCreate()
 
 spark.sparkContext.setLogLevel("ERROR")
-
-post_schema = StructType([
-    StructField("post_id", StringType(), True),
-    StructField("user_id", StringType(), True),
-    StructField("text", StringType(), True),
-    StructField("timestamp", StringType(), True),
-    StructField("likes", IntegerType(), True),
-    StructField("retweets", IntegerType(), True),
-    StructField("location", StringType(), True)
-])
 
 raw_df = spark.read \
     .format("kafka") \

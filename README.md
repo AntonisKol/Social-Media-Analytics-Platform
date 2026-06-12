@@ -130,6 +130,7 @@ STREAMING_CHECKPOINT_DIR=spark/streaming/checkpoint \
 STREAMING_TRIGGER_INTERVAL="20 seconds" \
 spark-submit \
   --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 \
+  --py-files spark/shared.py \
   spark/streaming/sentiment_streaming.py
 ```
 
@@ -149,6 +150,7 @@ KAFKA_TOPIC=social_posts_raw \
 BATCH_OUTPUT_DIR=spark/batch/output \
 spark-submit \
   --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 \
+  --py-files spark/shared.py \
   spark/batch/batch_analysis.py
 ```
 

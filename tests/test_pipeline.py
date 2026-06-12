@@ -10,13 +10,14 @@ from textblob import TextBlob
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SIMULATOR_PATH = os.path.join(ROOT_DIR, "simulator")
+SPARK_PATH = os.path.join(ROOT_DIR, "spark")
 
 import sys
 sys.path.insert(0, SIMULATOR_PATH)
+sys.path.insert(0, SPARK_PATH)
 
 from simulator import generate_post
-
-HASHTAG_PATTERN = r"#\w+"
+from shared import HASHTAG_PATTERN
 
 
 def extract_hashtags(text):
